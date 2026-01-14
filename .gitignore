@@ -1,0 +1,37 @@
+# ------------------
+# Data
+# ------------------
+data/
+*.h5
+*.pt
+*.ckpt
+*.npz
+
+# ------------------
+# Models / checkpoints
+# ------------------
+models/
+
+# ------------------
+# Logs / outputs
+# ------------------
+logs/
+*.log
+*.csv
+
+# ------------------
+# Python / Jupyter cache
+# ------------------
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+
+# ------------------
+# OS / Editor files
+# ------------------
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
