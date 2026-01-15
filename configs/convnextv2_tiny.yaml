@@ -1,0 +1,41 @@
+# ConvNeXtV2 Tiny Configuration
+# Usage: python scripts/train.py --config configs/convnextv2_tiny.yaml
+
+experiment_name: convnextv2_tiny_cifar10
+
+# Model configuration
+model:
+  name: convnextv2_tiny
+  num_classes: 10
+
+# Data configuration
+data:
+  dataset: cifar10          # Options: cifar10, cifar100, svhn, imagenet
+  root: ./data
+  img_size: 32
+  num_workers: 8
+  pin_memory: true
+  auto_augment: false       # Enable AutoAugment
+
+# Training configuration
+training:
+  epochs: 5
+  batch_size: 128
+  lr: 0.001
+  min_lr: 1e-6
+  weight_decay: 0.05
+  optimizer: adamw          # Options: adamw, sgd, adam
+  scheduler: cosine         # Options: cosine, step, multistep, none
+  label_smoothing: 0.1
+  use_amp: true             # Mixed precision training
+  seed: 42
+  
+  # For step/multistep scheduler
+  # step_size: 30
+  # milestones: [60, 80]
+  # gamma: 0.1
+
+# Logging configuration
+logging:
+  log_dir: logs
+  checkpoint_dir: models/checkpoints
