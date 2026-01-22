@@ -1,7 +1,7 @@
-# Simple CNN Configuration for comparison
-# Usage: python scripts/train.py --config configs/simple_cnn.yaml
+# Simple CNN with 10% training data
+# Usage: python scripts/train.py --config configs/simple_cnn_10pct.yaml
 
-experiment_name: simple_cnn_cifar10
+experiment_name: simple_cnn_cifar10_10pct
 
 # Model configuration
 model:
@@ -16,6 +16,7 @@ data:
   num_workers: 8
   pin_memory: true
   auto_augment: true
+  train_fraction: 0.1  # Use 10% of training data
 
 # Training configuration
 training:
@@ -28,10 +29,9 @@ training:
   scheduler: cosine
   label_smoothing: 0.1
   use_amp: true
-  compile: false            # torch.compile - disable for small models/datasets
+  compile: false
   seed: 42
 
 # Logging configuration
-# All outputs (checkpoints, logs, history.csv) are saved to logs/{experiment_name}/
 logging:
   log_dir: logs

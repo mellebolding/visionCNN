@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Professional training script for VisionCNN models.
+Training script for VisionCNN models.
 
 Usage:
     python scripts/train.py --config configs/convnextv2_tiny.yaml
-    python scripts/train.py --config configs/convnextv2_tiny.yaml --resume models/checkpoints/last.pt
+    python scripts/train.py --config configs/convnextv2_tiny.yaml --resume logs/convnextv2_tiny_cifar10/last.pt
 """
 import argparse
+import csv
 import os
 import sys
 import time
@@ -20,6 +21,7 @@ import torch.nn as nn
 from torch.amp.grad_scaler import GradScaler
 from torch.amp.autocast_mode import autocast
 from tqdm import tqdm
+from typing import cast
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,10 +33,10 @@ from src.utils.seed import set_seed
 
 def setup_logging(log_dir: str, experiment_name: str) -> logging.Logger:
     """Setup logging to file and console."""
-    os.makedirs(log_dir, exist_ok=True)
+    run_dir = os.path.join(log_dir, experiment_name)
+    os.makedirs(run_dir, exist_ok=True)
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_dir, f"{experiment_name}_{timestamp}.log")
+    log_file = os.path.join(run_dir, "train.log")
     
     logging.basicConfig(
         level=logging.INFO,
@@ -45,6 +47,22 @@ def setup_logging(log_dir: str, experiment_name: str) -> logging.Logger:
         ]
     )
     return logging.getLogger(__name__)
+
+
+def save_history_csv(history: dict, filepath: str):
+    """Save training history to CSV file."""
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "lr"])
+        for i in range(len(history["train_loss"])):
+            writer.writerow([
+                i + 1,
+                history["train_loss"][i],
+                history["train_acc"][i],
+                history["val_loss"][i],
+                history["val_acc"][i],
+                history["lr"][i] if i < len(history["lr"]) else ""
+            ])
 
 
 def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
@@ -98,7 +116,7 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     epoch: int,
-    scaler: GradScaler = None,
+    scaler: GradScaler | None = None,
     use_amp: bool = True
 ) -> dict:
     """Train for one epoch."""
@@ -190,7 +208,8 @@ def save_checkpoint(
     best_acc: float,
     cfg: dict,
     filepath: str,
-    scaler: GradScaler = None
+    scaler: GradScaler | None = None,
+    history: dict | None = None
 ):
     """Save model checkpoint."""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -206,6 +225,8 @@ def save_checkpoint(
         checkpoint["scheduler"] = scheduler.state_dict()
     if scaler is not None:
         checkpoint["scaler"] = scaler.state_dict()
+    if history is not None:
+        checkpoint["history"] = history
     
     torch.save(checkpoint, filepath)
 
@@ -233,16 +254,15 @@ def main(args):
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
     
-    # Setup
+    # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
-    log_dir = cfg.get("logging", {}).get("log_dir", "logs")
-    checkpoint_dir = os.path.join(
-        cfg.get("logging", {}).get("checkpoint_dir", "models/checkpoints"),
-        experiment_name
-    )
+    base_log_dir = cfg.get("logging", {}).get("log_dir", "logs")
+    run_dir = os.path.join(base_log_dir, experiment_name)
+    os.makedirs(run_dir, exist_ok=True)
     
-    logger = setup_logging(log_dir, experiment_name)
+    logger = setup_logging(base_log_dir, experiment_name)
     logger.info(f"Config: {cfg}")
+    logger.info(f"Run directory: {run_dir}")
     
     # Set seed
     seed = cfg.get("training", {}).get("seed", 42)
@@ -258,6 +278,11 @@ def main(args):
     num_params = sum(p.numel() for p in model.parameters())
     logger.info(f"Model: {cfg['model']['name']}, Parameters: {num_params:,}")
     
+    # Compile model for faster training (PyTorch 2.0+)
+    if cfg.get("training", {}).get("compile", False) and hasattr(torch, "compile"):
+        logger.info("Compiling model with torch.compile...")
+        model = cast(nn.Module, torch.compile(model))
+    
     # Build optimizer, scheduler, criterion
     optimizer = build_optimizer(model, cfg)
     scheduler = build_scheduler(optimizer, cfg)
@@ -272,16 +297,26 @@ def main(args):
     
     # Build dataloaders
     train_loader, val_loader = build_dataloader(cfg)
-    logger.info(f"Train samples: {len(train_loader.dataset)}, Val samples: {len(val_loader.dataset)}")
+    train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
+    fraction_str = f" ({train_fraction*100:.0f}% of full dataset)" if train_fraction < 1.0 else ""
+    logger.info(f"Train samples: {len(train_loader.dataset)}{fraction_str}, Val samples: {len(val_loader.dataset)}")  # type: ignore
     
     # Resume from checkpoint
     start_epoch = 0
     best_acc = 0.0
+    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": [], "lr": []}
     if args.resume:
         logger.info(f"Resuming from: {args.resume}")
-        start_epoch, best_acc = load_checkpoint(
-            args.resume, model, optimizer, scheduler, scaler
-        )
+        checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        if scheduler is not None and "scheduler" in checkpoint:
+            scheduler.load_state_dict(checkpoint["scheduler"])
+        if scaler is not None and "scaler" in checkpoint:
+            scaler.load_state_dict(checkpoint["scaler"])
+        start_epoch = checkpoint.get("epoch", 0) + 1
+        best_acc = checkpoint.get("best_acc", 0.0)
+        history = checkpoint.get("history", history)
         logger.info(f"Resumed from epoch {start_epoch}, best_acc: {best_acc:.2f}%")
     
     # Training loop
@@ -306,6 +341,16 @@ def main(args):
         epoch_time = time.time() - start_time
         current_lr = optimizer.param_groups[0]["lr"]
         
+        # Track history
+        history["train_loss"].append(train_metrics["loss"])
+        history["train_acc"].append(train_metrics["accuracy"])
+        history["val_loss"].append(val_metrics["loss"])
+        history["val_acc"].append(val_metrics["accuracy"])
+        history["lr"].append(current_lr)
+        
+        # Save history to CSV
+        save_history_csv(history, os.path.join(run_dir, "history.csv"))
+        
         # Logging
         logger.info(
             f"Epoch {epoch+1}/{epochs} | "
@@ -320,17 +365,18 @@ def main(args):
             best_acc = val_metrics["accuracy"]
             save_checkpoint(
                 model, optimizer, scheduler, epoch, best_acc, cfg,
-                os.path.join(checkpoint_dir, "best.pt"), scaler
+                os.path.join(run_dir, "best.pt"), scaler, history
             )
             logger.info(f"New best accuracy: {best_acc:.2f}%")
         
         # Always save last checkpoint
         save_checkpoint(
             model, optimizer, scheduler, epoch, best_acc, cfg,
-            os.path.join(checkpoint_dir, "last.pt"), scaler
+            os.path.join(run_dir, "last.pt"), scaler, history
         )
     
     logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
+    logger.info(f"Outputs saved to: {run_dir}")
 
 
 if __name__ == "__main__":

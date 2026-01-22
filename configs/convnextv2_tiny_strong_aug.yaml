@@ -1,0 +1,46 @@
+# ConvNeXtV2 Tiny with Strong Augmentation
+# Usage: python scripts/train.py --config configs/convnextv2_tiny_strong_aug.yaml
+
+experiment_name: convnextv2_tiny_cifar10_strong_aug
+
+# Model configuration
+model:
+  name: convnextv2_tiny
+  num_classes: 10
+
+# Data configuration
+data:
+  dataset: cifar10
+  root: ./data
+  img_size: 32
+  num_workers: 8
+  pin_memory: true
+  # Strong augmentation
+  auto_augment: false        # Disable in favor of RandAugment
+  rand_augment: true         # Use RandAugment
+  rand_augment_n: 2          # Number of augmentation operations
+  rand_augment_m: 9          # Magnitude of augmentations
+  color_jitter: true         # Enable color jitter
+  color_jitter_brightness: 0.4
+  color_jitter_contrast: 0.4
+  color_jitter_saturation: 0.4
+  color_jitter_hue: 0.1
+  random_erasing: true       # Random erasing (cutout-like)
+
+# Training configuration
+training:
+  epochs: 35                # More epochs for stronger regularization
+  batch_size: 128
+  lr: 0.001
+  min_lr: 1e-6
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: false
+  seed: 42
+
+# Logging configuration
+logging:
+  log_dir: logs

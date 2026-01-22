@@ -1,0 +1,47 @@
+# Simple CNN with Strong Augmentation (50% data)
+# Usage: python scripts/train.py --config configs/simple_cnn_strong_aug_50pct.yaml
+
+experiment_name: simple_cnn_cifar10_strong_aug_50pct
+
+# Model configuration
+model:
+  name: simple_cnn
+  num_classes: 10
+
+# Data configuration
+data:
+  dataset: cifar10
+  root: ./data
+  img_size: 32
+  num_workers: 8
+  pin_memory: true
+  train_fraction: 0.5
+  # Strong augmentation
+  auto_augment: false
+  rand_augment: true
+  rand_augment_n: 2
+  rand_augment_m: 9
+  color_jitter: true
+  color_jitter_brightness: 0.4
+  color_jitter_contrast: 0.4
+  color_jitter_saturation: 0.4
+  color_jitter_hue: 0.1
+  random_erasing: true
+
+# Training configuration
+training:
+  epochs: 35
+  batch_size: 128
+  lr: 0.001
+  min_lr: 1e-6
+  weight_decay: 0.01
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: false
+  seed: 42
+
+# Logging configuration
+logging:
+  log_dir: logs

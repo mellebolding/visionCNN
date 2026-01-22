@@ -15,11 +15,11 @@ data:
   img_size: 32
   num_workers: 8
   pin_memory: true
-  auto_augment: false       # Enable AutoAugment
+  auto_augment: true       # Enable AutoAugment
 
 # Training configuration
 training:
-  epochs: 5
+  epochs: 35
   batch_size: 128
   lr: 0.001
   min_lr: 1e-6
@@ -28,6 +28,7 @@ training:
   scheduler: cosine         # Options: cosine, step, multistep, none
   label_smoothing: 0.1
   use_amp: true             # Mixed precision training
+  compile: false            # torch.compile - disable for small models/datasets
   seed: 42
   
   # For step/multistep scheduler
@@ -36,6 +37,6 @@ training:
   # gamma: 0.1
 
 # Logging configuration
+# All outputs (checkpoints, logs, history.csv) are saved to logs/{experiment_name}/
 logging:
   log_dir: logs
-  checkpoint_dir: models/checkpoints
