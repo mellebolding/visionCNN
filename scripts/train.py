@@ -328,7 +328,8 @@ def main(args):
     
     # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
-    base_log_dir = cfg.get("logging", {}).get("log_dir", "logs")
+    # Allow command line override for log_dir (useful for different clusters)
+    base_log_dir = args.log_dir if args.log_dir else cfg.get("logging", {}).get("log_dir", "logs")
     run_dir = os.path.join(base_log_dir, experiment_name)
     
     # Only main process creates directories
@@ -505,6 +506,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a vision model (supports DDP)")
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML file")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    parser.add_argument("--log_dir", type=str, default=None, help="Override log directory (default: from config or 'logs')")
     parser.add_argument("--local_rank", type=int, default=None, help="Local rank (set by torchrun)")
     args = parser.parse_args()
     

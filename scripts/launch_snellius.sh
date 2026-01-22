@@ -19,7 +19,7 @@
 # =============================================================================
 
 #SBATCH --job-name=visioncnn
-#SBATCH --partition=gpu
+#SBATCH --partition=gpu_a100
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gpus-per-node=4
@@ -53,16 +53,14 @@ echo "=============================================="
 # Create SLURM output directory
 mkdir -p logs/slurm
 
-# Load modules (adjust based on your Snellius environment)
+# Load modules - use Snellius-optimized PyTorch stack
 module purge
 module load 2023
-module load Python/3.11.3-GCCcore-12.3.0
-module load CUDA/12.1.1
+module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 
-# Activate conda environment if using one
-# source activate visioncnn
-# Or use venv:
-# source /path/to/venv/bin/activate
+# Activate venv with additional packages (timm, wandb, etc.)
+# To add packages: pip install <package> (after activating)
+source /projects/prjs0771/melle/envs/pytorch21-cuda121/bin/activate
 
 # Set environment variables for distributed training
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_NODELIST | head -n 1)
@@ -100,12 +98,21 @@ echo "Additional args: $@"
 echo "=============================================="
 
 # =============================================================================
+# Paths
+# =============================================================================
+
+# Output directory for checkpoints, logs, etc. (project space for Snellius)
+LOG_DIR="/projects/prjs0771/melle/projects/visionCNN/logs"
+mkdir -p "$LOG_DIR"
+
+# =============================================================================
 # Launch Training
 # =============================================================================
 
 # For single-node multi-GPU, use torchrun
 if [[ $SLURM_NNODES -eq 1 ]]; then
     echo "Single-node training with $SLURM_GPUS_PER_NODE GPUs"
+    echo "Outputs will be saved to: $LOG_DIR"
     
     srun --ntasks=1 torchrun \
         --standalone \
@@ -113,10 +120,12 @@ if [[ $SLURM_NNODES -eq 1 ]]; then
         --master_port=$MASTER_PORT \
         scripts/train.py \
         --config "$CONFIG_FILE" \
+        --log_dir "$LOG_DIR" \
         "$@"
 else
     # For multi-node, use srun with torchrun
     echo "Multi-node training: $SLURM_NNODES nodes, $SLURM_GPUS_PER_NODE GPUs per node"
+    echo "Outputs will be saved to: $LOG_DIR"
     
     srun torchrun \
         --nnodes=$SLURM_NNODES \
@@ -126,6 +135,7 @@ else
         --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
         scripts/train.py \
         --config "$CONFIG_FILE" \
+        --log_dir "$LOG_DIR" \
         "$@"
 fi
 
