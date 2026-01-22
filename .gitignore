@@ -10,7 +10,7 @@ data/
 # ------------------
 # Models / checkpoints
 # ------------------
-models/
+/models/
 
 # ------------------
 # Logs / outputs
