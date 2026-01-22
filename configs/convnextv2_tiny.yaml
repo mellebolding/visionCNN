@@ -30,6 +30,7 @@ training:
   use_amp: true             # Mixed precision training
   compile: false            # torch.compile - disable for small models/datasets
   seed: 42
+  sync_bn: false            # Sync BatchNorm across GPUs (DDP)
   
   # For step/multistep scheduler
   # step_size: 30

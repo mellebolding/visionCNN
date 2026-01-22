@@ -1,6 +1,8 @@
 """Dataset factory for building train/val dataloaders."""
+from typing import Optional, Tuple
+
 import torch
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, random_split, Subset, Dataset, DistributedSampler
 import torchvision
 import torchvision.transforms as transforms
 
@@ -124,8 +126,20 @@ def subsample_dataset(dataset, fraction: float, seed: int = 42):
     return Subset(dataset, indices)
 
 
-def build_dataloader(cfg):
-    """Build train and validation dataloaders."""
+def build_dataloader(
+    cfg,
+    dist_manager: Optional["DistributedManager"] = None  # type: ignore
+) -> Tuple[DataLoader, DataLoader, Optional[DistributedSampler], Optional[DistributedSampler]]:
+    """Build train and validation dataloaders.
+    
+    Args:
+        cfg: Configuration dictionary
+        dist_manager: Optional DistributedManager for DDP training
+        
+    Returns:
+        Tuple of (train_loader, val_loader, train_sampler, val_sampler)
+        Samplers are returned so set_epoch can be called during training
+    """
     batch_size = cfg.get("training", {}).get("batch_size", 64)
     num_workers = cfg.get("data", {}).get("num_workers", 4)
     pin_memory = cfg.get("data", {}).get("pin_memory", True)
@@ -139,10 +153,30 @@ def build_dataloader(cfg):
     if train_fraction < 1.0:
         train_dataset = subsample_dataset(train_dataset, train_fraction, seed=seed)
     
+    # Create distributed samplers if using DDP
+    train_sampler = None
+    val_sampler = None
+    
+    if dist_manager is not None and dist_manager.is_distributed:
+        train_sampler = DistributedSampler(
+            train_dataset,
+            num_replicas=dist_manager.world_size,
+            rank=dist_manager.rank,
+            shuffle=True,
+            seed=seed
+        )
+        val_sampler = DistributedSampler(
+            val_dataset,
+            num_replicas=dist_manager.world_size,
+            rank=dist_manager.rank,
+            shuffle=False
+        )
+    
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=(train_sampler is None),  # Don't shuffle if using sampler
+        sampler=train_sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=True
@@ -152,11 +186,12 @@ def build_dataloader(cfg):
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
+        sampler=val_sampler,
         num_workers=num_workers,
         pin_memory=pin_memory
     )
     
-    return train_loader, val_loader
+    return train_loader, val_loader, train_sampler, val_sampler
 
 
 def get_num_classes(dataset_name):

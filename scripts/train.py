@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-Training script for VisionCNN models.
+Training script for VisionCNN models with Distributed Data Parallel (DDP) support.
 
-Usage:
+Single GPU:
     python scripts/train.py --config configs/convnextv2_tiny.yaml
-    python scripts/train.py --config configs/convnextv2_tiny.yaml --resume logs/convnextv2_tiny_cifar10/last.pt
+
+Multi-GPU (local, e.g., 3x A6000):
+    torchrun --nproc_per_node=3 scripts/train.py --config configs/convnextv2_tiny.yaml
+
+Multi-GPU (SLURM, e.g., 4x A100):
+    See scripts/launch_snellius.sh for SLURM submission
+
+Resume training:
+    torchrun --nproc_per_node=3 scripts/train.py --config configs/convnextv2_tiny.yaml --resume logs/convnextv2_tiny_cifar10/last.pt
 """
 import argparse
 import csv
@@ -14,12 +22,14 @@ import time
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 import yaml
 import torch
 import torch.nn as nn
 from torch.amp.grad_scaler import GradScaler
 from torch.amp.autocast_mode import autocast
+from torch.utils.data import DistributedSampler
 from tqdm import tqdm
 from typing import cast
 
@@ -29,24 +39,33 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.models.factory import build_model
 from src.datasets.build import build_dataloader
 from src.utils.seed import set_seed
+from src.utils.distributed import DistributedManager
 
 
-def setup_logging(log_dir: str, experiment_name: str) -> logging.Logger:
-    """Setup logging to file and console."""
+def setup_logging(log_dir: str, experiment_name: str, rank: int = 0) -> logging.Logger:
+    """Setup logging to file and console (only rank 0 logs to file)."""
     run_dir = os.path.join(log_dir, experiment_name)
     os.makedirs(run_dir, exist_ok=True)
     
-    log_file = os.path.join(run_dir, "train.log")
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()  # Clear existing handlers
     
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    return logging.getLogger(__name__)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    
+    # Console handler for all ranks (but we'll control output manually)
+    if rank == 0:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        
+        # File handler only for rank 0
+        log_file = os.path.join(run_dir, "train.log")
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    
+    return logger
 
 
 def save_history_csv(history: dict, filepath: str):
@@ -116,6 +135,7 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     epoch: int,
+    dist_manager: DistributedManager,
     scaler: GradScaler | None = None,
     use_amp: bool = True
 ) -> dict:
@@ -126,11 +146,15 @@ def train_one_epoch(
     correct = 0
     total = 0
     
-    pbar = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train]", leave=False)
-    for images, labels in pbar:
-        images, labels = images.to(device), labels.to(device)
+    # Only show progress bar on main process
+    train_iter = train_loader
+    if dist_manager.is_main_process:
+        train_iter = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train]", leave=False)
+    
+    for images, labels in train_iter:
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         
         if use_amp and scaler is not None:
             with autocast('cuda'):
@@ -150,10 +174,22 @@ def train_one_epoch(
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
         
-        pbar.set_postfix({
-            "loss": f"{loss.item():.4f}",
-            "acc": f"{100. * correct / total:.2f}%"
-        })
+        if dist_manager.is_main_process and hasattr(train_iter, 'set_postfix'):
+            train_iter.set_postfix({
+                "loss": f"{loss.item():.4f}",
+                "acc": f"{100. * correct / total:.2f}%"
+            })
+    
+    # Aggregate metrics across all processes
+    if dist_manager.is_distributed:
+        metrics_tensor = torch.tensor(
+            [total_loss, correct, total],
+            device=device
+        )
+        dist_manager.all_reduce(metrics_tensor)
+        total_loss = metrics_tensor[0].item()
+        correct = int(metrics_tensor[1].item())
+        total = int(metrics_tensor[2].item())
     
     return {
         "loss": total_loss / total,
@@ -168,6 +204,7 @@ def validate(
     criterion: nn.Module,
     device: torch.device,
     epoch: int,
+    dist_manager: DistributedManager,
     use_amp: bool = True
 ) -> dict:
     """Validate the model."""
@@ -177,9 +214,13 @@ def validate(
     correct = 0
     total = 0
     
-    pbar = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val]", leave=False)
-    for images, labels in pbar:
-        images, labels = images.to(device), labels.to(device)
+    # Only show progress bar on main process
+    val_iter = val_loader
+    if dist_manager.is_main_process:
+        val_iter = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val]", leave=False)
+    
+    for images, labels in val_iter:
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
         if use_amp:
             with autocast('cuda'):
@@ -193,6 +234,17 @@ def validate(
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
+    
+    # Aggregate metrics across all processes
+    if dist_manager.is_distributed:
+        metrics_tensor = torch.tensor(
+            [total_loss, correct, total],
+            device=device
+        )
+        dist_manager.all_reduce(metrics_tensor)
+        total_loss = metrics_tensor[0].item()
+        correct = int(metrics_tensor[1].item())
+        total = int(metrics_tensor[2].item())
     
     return {
         "loss": total_loss / total,
@@ -209,13 +261,17 @@ def save_checkpoint(
     cfg: dict,
     filepath: str,
     scaler: GradScaler | None = None,
-    history: dict | None = None
+    history: dict | None = None,
+    is_distributed: bool = False
 ):
     """Save model checkpoint."""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
+    # Get the actual model (unwrap DDP if necessary)
+    model_to_save = model.module if is_distributed else model
+    
     checkpoint = {
-        "model": model.state_dict(),
+        "model": model_to_save.state_dict(),
         "optimizer": optimizer.state_dict(),
         "epoch": epoch,
         "best_acc": best_acc,
@@ -231,10 +287,20 @@ def save_checkpoint(
     torch.save(checkpoint, filepath)
 
 
-def load_checkpoint(filepath: str, model: nn.Module, optimizer=None, scheduler=None, scaler=None):
+def load_checkpoint(
+    filepath: str, 
+    model: nn.Module, 
+    optimizer=None, 
+    scheduler=None, 
+    scaler=None,
+    map_location="cpu"
+):
     """Load model checkpoint."""
-    checkpoint = torch.load(filepath, map_location="cpu")
-    model.load_state_dict(checkpoint["model"])
+    checkpoint = torch.load(filepath, map_location=map_location, weights_only=False)
+    
+    # Handle DDP wrapper
+    model_to_load = model.module if hasattr(model, 'module') else model
+    model_to_load.load_state_dict(checkpoint["model"])
     
     start_epoch = checkpoint.get("epoch", 0) + 1
     best_acc = checkpoint.get("best_acc", 0.0)
@@ -246,10 +312,16 @@ def load_checkpoint(filepath: str, model: nn.Module, optimizer=None, scheduler=N
     if scaler is not None and "scaler" in checkpoint:
         scaler.load_state_dict(checkpoint["scaler"])
     
-    return start_epoch, best_acc
+    history = checkpoint.get("history", None)
+    
+    return start_epoch, best_acc, history
 
 
 def main(args):
+    # Initialize distributed training
+    dist_manager = DistributedManager(backend="nccl")
+    dist_manager.setup(local_rank=args.local_rank)
+    
     # Load config
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
@@ -258,30 +330,50 @@ def main(args):
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
     base_log_dir = cfg.get("logging", {}).get("log_dir", "logs")
     run_dir = os.path.join(base_log_dir, experiment_name)
-    os.makedirs(run_dir, exist_ok=True)
     
-    logger = setup_logging(base_log_dir, experiment_name)
-    logger.info(f"Config: {cfg}")
-    logger.info(f"Run directory: {run_dir}")
+    # Only main process creates directories
+    if dist_manager.is_main_process:
+        os.makedirs(run_dir, exist_ok=True)
     
-    # Set seed
+    # Synchronize before logging setup
+    dist_manager.barrier()
+    
+    logger = setup_logging(base_log_dir, experiment_name, dist_manager.rank)
+    
+    if dist_manager.is_main_process:
+        logger.info(f"Distributed: {dist_manager}")
+        logger.info(f"Config: {cfg}")
+        logger.info(f"Run directory: {run_dir}")
+    
+    # Set seed (with rank offset for diversity)
     seed = cfg.get("training", {}).get("seed", 42)
-    set_seed(seed)
-    logger.info(f"Set random seed: {seed}")
+    set_seed(seed + dist_manager.rank)
+    if dist_manager.is_main_process:
+        logger.info(f"Set random seed: {seed} (rank offset applied)")
     
-    # Device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
+    # Device is managed by dist_manager
+    device = dist_manager.device
+    if dist_manager.is_main_process:
+        logger.info(f"Using device: {device}")
+        if dist_manager.is_distributed:
+            logger.info(f"World size: {dist_manager.world_size}")
     
     # Build model
-    model = build_model(cfg).to(device)
+    model = build_model(cfg)
     num_params = sum(p.numel() for p in model.parameters())
-    logger.info(f"Model: {cfg['model']['name']}, Parameters: {num_params:,}")
+    if dist_manager.is_main_process:
+        logger.info(f"Model: {cfg['model']['name']}, Parameters: {num_params:,}")
     
     # Compile model for faster training (PyTorch 2.0+)
+    # Note: torch.compile should be done before DDP wrapping
     if cfg.get("training", {}).get("compile", False) and hasattr(torch, "compile"):
-        logger.info("Compiling model with torch.compile...")
+        if dist_manager.is_main_process:
+            logger.info("Compiling model with torch.compile...")
         model = cast(nn.Module, torch.compile(model))
+    
+    # Wrap model with DDP
+    sync_bn = cfg.get("training", {}).get("sync_bn", False)
+    model = dist_manager.wrap_model(model, find_unused_parameters=False, sync_bn=sync_bn)
     
     # Build optimizer, scheduler, criterion
     optimizer = build_optimizer(model, cfg)
@@ -293,46 +385,65 @@ def main(args):
     # Mixed precision
     use_amp = cfg.get("training", {}).get("use_amp", True) and device.type == "cuda"
     scaler = GradScaler('cuda') if use_amp else None
-    logger.info(f"Mixed precision training: {use_amp}")
+    if dist_manager.is_main_process:
+        logger.info(f"Mixed precision training: {use_amp}")
     
-    # Build dataloaders
-    train_loader, val_loader = build_dataloader(cfg)
+    # Build dataloaders with distributed samplers
+    train_loader, val_loader, train_sampler, val_sampler = build_dataloader(cfg, dist_manager)
+    
     train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
     fraction_str = f" ({train_fraction*100:.0f}% of full dataset)" if train_fraction < 1.0 else ""
-    logger.info(f"Train samples: {len(train_loader.dataset)}{fraction_str}, Val samples: {len(val_loader.dataset)}")  # type: ignore
+    
+    if dist_manager.is_main_process:
+        total_train = len(train_loader.dataset)  # type: ignore
+        total_val = len(val_loader.dataset)  # type: ignore
+        logger.info(f"Train samples: {total_train}{fraction_str}, Val samples: {total_val}")
+        if dist_manager.is_distributed:
+            effective_batch = cfg["training"]["batch_size"] * dist_manager.world_size
+            logger.info(f"Effective batch size: {effective_batch} ({cfg['training']['batch_size']} x {dist_manager.world_size} GPUs)")
     
     # Resume from checkpoint
     start_epoch = 0
     best_acc = 0.0
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": [], "lr": []}
+    
     if args.resume:
-        logger.info(f"Resuming from: {args.resume}")
-        checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
-        model.load_state_dict(checkpoint["model"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        if scheduler is not None and "scheduler" in checkpoint:
-            scheduler.load_state_dict(checkpoint["scheduler"])
-        if scaler is not None and "scaler" in checkpoint:
-            scaler.load_state_dict(checkpoint["scaler"])
-        start_epoch = checkpoint.get("epoch", 0) + 1
-        best_acc = checkpoint.get("best_acc", 0.0)
-        history = checkpoint.get("history", history)
-        logger.info(f"Resumed from epoch {start_epoch}, best_acc: {best_acc:.2f}%")
+        if dist_manager.is_main_process:
+            logger.info(f"Resuming from: {args.resume}")
+        
+        start_epoch, best_acc, loaded_history = load_checkpoint(
+            args.resume, model, optimizer, scheduler, scaler,
+            map_location=device
+        )
+        
+        if loaded_history is not None:
+            history = loaded_history
+        
+        if dist_manager.is_main_process:
+            logger.info(f"Resumed from epoch {start_epoch}, best_acc: {best_acc:.2f}%")
     
     # Training loop
     epochs = cfg["training"]["epochs"]
-    logger.info(f"Starting training for {epochs} epochs...")
+    if dist_manager.is_main_process:
+        logger.info(f"Starting training for {epochs} epochs...")
     
     for epoch in range(start_epoch, epochs):
         start_time = time.time()
         
+        # Set epoch for distributed sampler (important for shuffling!)
+        if train_sampler is not None:
+            train_sampler.set_epoch(epoch)
+        
         # Train
         train_metrics = train_one_epoch(
-            model, train_loader, criterion, optimizer, device, epoch, scaler, use_amp
+            model, train_loader, criterion, optimizer, device, epoch,
+            dist_manager, scaler, use_amp
         )
         
         # Validate
-        val_metrics = validate(model, val_loader, criterion, device, epoch, use_amp)
+        val_metrics = validate(
+            model, val_loader, criterion, device, epoch, dist_manager, use_amp
+        )
         
         # Update scheduler
         if scheduler is not None:
@@ -341,48 +452,60 @@ def main(args):
         epoch_time = time.time() - start_time
         current_lr = optimizer.param_groups[0]["lr"]
         
-        # Track history
+        # Track history (all processes have same aggregated values)
         history["train_loss"].append(train_metrics["loss"])
         history["train_acc"].append(train_metrics["accuracy"])
         history["val_loss"].append(val_metrics["loss"])
         history["val_acc"].append(val_metrics["accuracy"])
         history["lr"].append(current_lr)
         
-        # Save history to CSV
-        save_history_csv(history, os.path.join(run_dir, "history.csv"))
-        
-        # Logging
-        logger.info(
-            f"Epoch {epoch+1}/{epochs} | "
-            f"Train Loss: {train_metrics['loss']:.4f}, Train Acc: {train_metrics['accuracy']:.2f}% | "
-            f"Val Loss: {val_metrics['loss']:.4f}, Val Acc: {val_metrics['accuracy']:.2f}% | "
-            f"LR: {current_lr:.6f} | Time: {epoch_time:.1f}s"
-        )
-        
-        # Save checkpoints
-        is_best = val_metrics["accuracy"] > best_acc
-        if is_best:
-            best_acc = val_metrics["accuracy"]
+        # Only main process logs and saves
+        if dist_manager.is_main_process:
+            # Save history to CSV
+            save_history_csv(history, os.path.join(run_dir, "history.csv"))
+            
+            # Logging
+            logger.info(
+                f"Epoch {epoch+1}/{epochs} | "
+                f"Train Loss: {train_metrics['loss']:.4f}, Train Acc: {train_metrics['accuracy']:.2f}% | "
+                f"Val Loss: {val_metrics['loss']:.4f}, Val Acc: {val_metrics['accuracy']:.2f}% | "
+                f"LR: {current_lr:.6f} | Time: {epoch_time:.1f}s"
+            )
+            
+            # Save checkpoints
+            is_best = val_metrics["accuracy"] > best_acc
+            if is_best:
+                best_acc = val_metrics["accuracy"]
+                save_checkpoint(
+                    model, optimizer, scheduler, epoch, best_acc, cfg,
+                    os.path.join(run_dir, "best.pt"), scaler, history,
+                    is_distributed=dist_manager.is_distributed
+                )
+                logger.info(f"New best accuracy: {best_acc:.2f}%")
+            
+            # Always save last checkpoint
             save_checkpoint(
                 model, optimizer, scheduler, epoch, best_acc, cfg,
-                os.path.join(run_dir, "best.pt"), scaler, history
+                os.path.join(run_dir, "last.pt"), scaler, history,
+                is_distributed=dist_manager.is_distributed
             )
-            logger.info(f"New best accuracy: {best_acc:.2f}%")
         
-        # Always save last checkpoint
-        save_checkpoint(
-            model, optimizer, scheduler, epoch, best_acc, cfg,
-            os.path.join(run_dir, "last.pt"), scaler, history
-        )
+        # Synchronize at end of epoch
+        dist_manager.barrier()
     
-    logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
-    logger.info(f"Outputs saved to: {run_dir}")
+    if dist_manager.is_main_process:
+        logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
+        logger.info(f"Outputs saved to: {run_dir}")
+    
+    # Cleanup distributed
+    dist_manager.cleanup()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a vision model")
+    parser = argparse.ArgumentParser(description="Train a vision model (supports DDP)")
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML file")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    parser.add_argument("--local_rank", type=int, default=None, help="Local rank (set by torchrun)")
     args = parser.parse_args()
     
     main(args)
