@@ -11,52 +11,110 @@ def get_transforms(cfg, is_train=True):
     """Build transforms based on config."""
     img_size = cfg.get("data", {}).get("img_size", 32)
     data_cfg = cfg.get("data", {})
+    dataset_name = data_cfg.get("dataset", "cifar10").lower()
     
-    if is_train:
-        transform_list = []
-        
-        # Optional: AutoAugment (applied before other augmentations)
-        if data_cfg.get("auto_augment", False):
-            transform_list.append(transforms.AutoAugment(
-                policy=transforms.AutoAugmentPolicy.CIFAR10
-            ))
-        
-        # Optional: RandAugment (alternative to AutoAugment)
-        if data_cfg.get("rand_augment", False):
-            n_ops = data_cfg.get("rand_augment_n", 2)
-            magnitude = data_cfg.get("rand_augment_m", 9)
-            transform_list.append(transforms.RandAugment(num_ops=n_ops, magnitude=magnitude))
-        
-        # Basic augmentations
-        transform_list.extend([
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(img_size, padding=4),
-        ])
-        
-        # Optional: Color jitter
-        if data_cfg.get("color_jitter", False):
-            brightness = data_cfg.get("color_jitter_brightness", 0.4)
-            contrast = data_cfg.get("color_jitter_contrast", 0.4)
-            saturation = data_cfg.get("color_jitter_saturation", 0.4)
-            hue = data_cfg.get("color_jitter_hue", 0.1)
-            transform_list.append(transforms.ColorJitter(
-                brightness=brightness, contrast=contrast, 
-                saturation=saturation, hue=hue
-            ))
-        
-        # Optional: Random erasing (applied after ToTensor)
-        transform_list.append(transforms.ToTensor())
-        
-        if data_cfg.get("random_erasing", False):
-            transform_list.append(transforms.RandomErasing(p=0.25))
-        
-        transform_list.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
-        
+    # Use ImageNet normalization for ImageNet, otherwise use simple normalization
+    if dataset_name == "imagenet":
+        normalize = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
     else:
-        transform_list = [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ]
+        normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    
+    # ImageNet-style transforms (larger images, need resize)
+    if dataset_name == "imagenet" or img_size >= 224:
+        if is_train:
+            transform_list = [
+                transforms.RandomResizedCrop(img_size, scale=(0.08, 1.0)),
+                transforms.RandomHorizontalFlip(),
+            ]
+            
+            # Optional: AutoAugment for ImageNet
+            if data_cfg.get("auto_augment", False):
+                transform_list.append(transforms.AutoAugment(
+                    policy=transforms.AutoAugmentPolicy.IMAGENET
+                ))
+            
+            # Optional: RandAugment
+            if data_cfg.get("rand_augment", False):
+                n_ops = data_cfg.get("rand_augment_n", 2)
+                magnitude = data_cfg.get("rand_augment_m", 9)
+                transform_list.append(transforms.RandAugment(num_ops=n_ops, magnitude=magnitude))
+            
+            # Optional: Color jitter
+            if data_cfg.get("color_jitter", False):
+                brightness = data_cfg.get("color_jitter_brightness", 0.4)
+                contrast = data_cfg.get("color_jitter_contrast", 0.4)
+                saturation = data_cfg.get("color_jitter_saturation", 0.4)
+                hue = data_cfg.get("color_jitter_hue", 0.1)
+                transform_list.append(transforms.ColorJitter(
+                    brightness=brightness, contrast=contrast,
+                    saturation=saturation, hue=hue
+                ))
+            
+            transform_list.append(transforms.ToTensor())
+            
+            # Optional: Random erasing
+            if data_cfg.get("random_erasing", False):
+                transform_list.append(transforms.RandomErasing(p=0.25))
+            
+            transform_list.append(normalize)
+        else:
+            # Validation: resize to 256, center crop to 224
+            resize_size = int(img_size / 0.875)  # 256 for img_size=224
+            transform_list = [
+                transforms.Resize(resize_size),
+                transforms.CenterCrop(img_size),
+                transforms.ToTensor(),
+                normalize,
+            ]
+    else:
+        # CIFAR-style transforms (small images, use padding)
+        if is_train:
+            transform_list = []
+            
+            # Optional: AutoAugment (applied before other augmentations)
+            if data_cfg.get("auto_augment", False):
+                transform_list.append(transforms.AutoAugment(
+                    policy=transforms.AutoAugmentPolicy.CIFAR10
+                ))
+            
+            # Optional: RandAugment (alternative to AutoAugment)
+            if data_cfg.get("rand_augment", False):
+                n_ops = data_cfg.get("rand_augment_n", 2)
+                magnitude = data_cfg.get("rand_augment_m", 9)
+                transform_list.append(transforms.RandAugment(num_ops=n_ops, magnitude=magnitude))
+            
+            # Basic augmentations
+            transform_list.extend([
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomCrop(img_size, padding=4),
+            ])
+            
+            # Optional: Color jitter
+            if data_cfg.get("color_jitter", False):
+                brightness = data_cfg.get("color_jitter_brightness", 0.4)
+                contrast = data_cfg.get("color_jitter_contrast", 0.4)
+                saturation = data_cfg.get("color_jitter_saturation", 0.4)
+                hue = data_cfg.get("color_jitter_hue", 0.1)
+                transform_list.append(transforms.ColorJitter(
+                    brightness=brightness, contrast=contrast,
+                    saturation=saturation, hue=hue
+                ))
+            
+            # ToTensor and optional random erasing
+            transform_list.append(transforms.ToTensor())
+            
+            if data_cfg.get("random_erasing", False):
+                transform_list.append(transforms.RandomErasing(p=0.25))
+            
+            transform_list.append(normalize)
+        else:
+            transform_list = [
+                transforms.ToTensor(),
+                normalize,
+            ]
     
     return transforms.Compose(transform_list)
 

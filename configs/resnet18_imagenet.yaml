@@ -1,0 +1,56 @@
+# ResNet18 ImageNet Configuration
+# Usage: 
+#   Single GPU: python scripts/train.py --config configs/resnet18_imagenet.yaml
+#   Multi-GPU:  ./scripts/launch_local.sh configs/resnet18_imagenet.yaml
+#   Snellius:   sbatch scripts/launch_snellius.sh configs/resnet18_imagenet.yaml
+
+experiment_name: resnet18_imagenet
+
+# Model configuration
+model:
+  name: resnet18
+  num_classes: 1000
+
+# Data configuration
+data:
+  dataset: imagenet
+  root: /path/to/imagenet        # UPDATE THIS: path to ImageNet (should have train/ and val/ subdirs)
+  img_size: 224
+  num_workers: 8
+  pin_memory: true
+  # Standard ImageNet augmentation
+  auto_augment: false
+  rand_augment: true
+  rand_augment_n: 2
+  rand_augment_m: 9
+  color_jitter: true
+  color_jitter_brightness: 0.4
+  color_jitter_contrast: 0.4
+  color_jitter_saturation: 0.4
+  color_jitter_hue: 0.1
+  random_erasing: true
+
+# Training configuration  
+training:
+  epochs: 90
+  batch_size: 256               # Per-GPU batch size (effective = batch_size * num_gpus)
+  lr: 0.1                       # Base LR for batch_size=256
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine             # or use 'step' with milestones below
+  label_smoothing: 0.1
+  use_amp: true
+  compile: false                # Enable for PyTorch 2.0+ speedup
+  seed: 42
+  sync_bn: true                 # Recommended for DDP with small per-GPU batch
+  
+  # For step scheduler (ImageNet classic recipe)
+  # scheduler: step
+  # step_size: 30
+  # gamma: 0.1
+
+# Logging configuration
+logging:
+  log_dir: logs
