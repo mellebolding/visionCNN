@@ -28,6 +28,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --output=logs/slurm/%j_%x.out
 #SBATCH --error=logs/slurm/%j_%x.err
+#SBATCH --account=mcsei4132
 
 # =============================================================================
 # Environment Setup

@@ -27,8 +27,7 @@ from typing import Optional
 import yaml
 import torch
 import torch.nn as nn
-from torch.amp.grad_scaler import GradScaler
-from torch.amp.autocast_mode import autocast
+from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DistributedSampler
 from tqdm import tqdm
 from typing import cast
