@@ -33,6 +33,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # Configuration
+
 CONFIG_FILE="${1:-configs/convnextv2_tiny.yaml}"
 shift 2>/dev/null || true  # Shift to get remaining args, ignore if no more args
 
@@ -41,6 +42,11 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Error: Config file not found: $CONFIG_FILE"
     exit 1
 fi
+
+# Output directory for checkpoints, logs, etc.
+LOG_DIR="/logs"
+mkdir -p "$LOG_DIR"
+LOG_DIR="${LOG_DIR:-logs}"  # Allow override via env var
 
 # Detect number of GPUs
 if [[ -z "$NGPUS" ]]; then
@@ -54,16 +60,18 @@ echo "=============================================="
 echo "Multi-GPU Training Launcher"
 echo "=============================================="
 echo "Config: $CONFIG_FILE"
+echo "Log directory: $LOG_DIR"
 echo "GPUs: $NGPUS"
 echo "Master port: $MASTER_PORT"
 echo "Additional args: $@"
 echo "=============================================="
 
-# Launch training with torchrun
+# Replace <IMAGENET_ROOT> in config if present
 torchrun \
     --standalone \
     --nproc_per_node=$NGPUS \
     --master_port=$MASTER_PORT \
     scripts/train.py \
     --config "$CONFIG_FILE" \
+    --log_dir "$LOG_DIR" \
     "$@"

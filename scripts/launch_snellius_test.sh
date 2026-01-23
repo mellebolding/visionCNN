@@ -33,6 +33,8 @@ echo "PyTorch version: $(python -c 'import torch; print(torch.__version__)')"
 echo "CUDA available: $(python -c 'import torch; print(torch.cuda.is_available())')"
 
 # Project paths
+
+# Set ImageNet root based on host
 PROJECT_DIR=/home/mbolding/visionCNN
 LOG_DIR=/projects/prjs0771/melle/projects/visionCNN/logs
 
@@ -41,5 +43,7 @@ cd $PROJECT_DIR
 # Quick test: single GPU run on CIFAR-10
 # This will use the config defaults but only 1 GPU
 python scripts/train.py \
-    --config configs/convnextv2_tiny.yaml \
+TMP_CONFIG="/tmp/convnextv2_tiny_test.$SLURM_JOB_ID.yaml"
+python scripts/train.py \
+    --config "$CONFIG_FILE" \
     --log_dir $LOG_DIR

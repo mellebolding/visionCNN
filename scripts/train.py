@@ -156,7 +156,7 @@ def train_one_epoch(
         optimizer.zero_grad(set_to_none=True)
         
         if use_amp and scaler is not None:
-            with autocast('cuda'):
+            with autocast():
                 outputs = model(images)
                 loss = criterion(outputs, labels)
             scaler.scale(loss).backward()
@@ -222,7 +222,7 @@ def validate(
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
         if use_amp:
-            with autocast('cuda'):
+            with autocast():
                 outputs = model(images)
                 loss = criterion(outputs, labels)
         else:
@@ -322,8 +322,21 @@ def main(args):
     dist_manager.setup(local_rank=args.local_rank)
     
     # Load config
+    import socket
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
+
+    # Automatically set ImageNet root based on hostname if needed
+    if cfg.get("data", {}).get("dataset", "").lower() == "imagenet":
+        host = socket.gethostname().lower()
+        if "guppy" in host:
+            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
+        elif "snellius" in host:
+            imagenet_root = "/projects/prjs0771/melle/datasets/imagenet/ILSVRC/Data/CLS-LOC"
+        if cfg["data"].get("root", None) in (None, "<IMAGENET_ROOT>", "") or "/ILSVRC/Data/CLS-LOC" in str(cfg["data"].get("root", "")):
+            cfg["data"]["root"] = imagenet_root
+        # Optionally log the chosen root
+        print(f"[INFO] Using ImageNet root: {cfg['data']['root']}")
     
     # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
@@ -384,7 +397,7 @@ def main(args):
     
     # Mixed precision
     use_amp = cfg.get("training", {}).get("use_amp", True) and device.type == "cuda"
-    scaler = GradScaler('cuda') if use_amp else None
+    scaler = GradScaler() if use_amp else None
     if dist_manager.is_main_process:
         logger.info(f"Mixed precision training: {use_amp}")
     

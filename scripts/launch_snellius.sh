@@ -12,7 +12,7 @@
 #   sbatch scripts/launch_snellius.sh configs/convnextv2_tiny.yaml --resume logs/convnextv2_tiny_cifar10/last.pt
 #
 # Available partitions:
-#   gpu         - A100 GPUs (4 per node)
+#   gpu_a100    - A100 GPUs (4 per node)
 #   gpu_h100    - H100 GPUs (4 per node)
 #
 # Modify SBATCH directives below to adjust resources.
@@ -25,7 +25,7 @@
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-task=18
 #SBATCH --mem=480G
-#SBATCH --time=12:00:00
+#SBATCH --time=01:00:00
 #SBATCH --output=logs/slurm/%j_%x.out
 #SBATCH --error=logs/slurm/%j_%x.err
 #SBATCH --account=mcsei4132
@@ -51,17 +51,17 @@ echo "CPUs per task: $SLURM_CPUS_PER_TASK"
 echo "Node list: $SLURM_NODELIST"
 echo "=============================================="
 
-# Create SLURM output directory
-mkdir -p logs/slurm
-
 # Load modules - use Snellius-optimized PyTorch stack
 module purge
 module load 2023
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 
 # Activate venv with additional packages (timm, wandb, etc.)
-# To add packages: pip install <package> (after activating)
 source /projects/prjs0771/melle/envs/pytorch21-cuda121/bin/activate
+
+# Ensure all distributed processes use the venv
+export PATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/bin:$PATH"
+export PYTHONPATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Set environment variables for distributed training
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_NODELIST | head -n 1)
@@ -115,6 +115,7 @@ if [[ $SLURM_NNODES -eq 1 ]]; then
     echo "Single-node training with $SLURM_GPUS_PER_NODE GPUs"
     echo "Outputs will be saved to: $LOG_DIR"
     
+    # Replace <IMAGENET_ROOT> in config if present
     srun --ntasks=1 torchrun \
         --standalone \
         --nproc_per_node=$SLURM_GPUS_PER_NODE \
@@ -128,6 +129,7 @@ else
     echo "Multi-node training: $SLURM_NNODES nodes, $SLURM_GPUS_PER_NODE GPUs per node"
     echo "Outputs will be saved to: $LOG_DIR"
     
+    # Replace <IMAGENET_ROOT> in config if present
     srun torchrun \
         --nnodes=$SLURM_NNODES \
         --nproc_per_node=$SLURM_GPUS_PER_NODE \

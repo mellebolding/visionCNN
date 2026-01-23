@@ -14,7 +14,7 @@ model:
 # Data configuration
 data:
   dataset: imagenet
-  root: /path/to/imagenet        # UPDATE THIS: path to ImageNet (should have train/ and val/ subdirs)
+  root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
   num_workers: 8
   pin_memory: true
@@ -32,7 +32,7 @@ data:
 
 # Training configuration  
 training:
-  epochs: 90
+  epochs: 40
   batch_size: 256               # Per-GPU batch size (effective = batch_size * num_gpus)
   lr: 0.1                       # Base LR for batch_size=256
   min_lr: 0.0
@@ -42,7 +42,7 @@ training:
   scheduler: cosine             # or use 'step' with milestones below
   label_smoothing: 0.1
   use_amp: true
-  compile: false                # Enable for PyTorch 2.0+ speedup
+  compile: true                # Enable for PyTorch 2.0+ speedup
   seed: 42
   sync_bn: true                 # Recommended for DDP with small per-GPU batch
   
