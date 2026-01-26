@@ -88,6 +88,8 @@ def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
     opt_name = cfg.get("training", {}).get("optimizer", "adamw").lower()
     lr = cfg["training"]["lr"]
     weight_decay = cfg["training"].get("weight_decay", 0.01)
+    if isinstance(weight_decay, str):
+            weight_decay = float(weight_decay)
     
     if opt_name == "adamw":
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
