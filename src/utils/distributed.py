@@ -306,7 +306,7 @@ class DistributedManager:
     def barrier(self):
         """Synchronize all processes."""
         if self.is_distributed:
-            dist.barrier()
+            dist.barrier(device_ids=[self.device.index])
     
     def all_reduce(self, tensor: torch.Tensor, op=dist.ReduceOp.SUM) -> torch.Tensor:
         """
