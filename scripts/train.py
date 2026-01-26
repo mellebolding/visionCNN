@@ -27,7 +27,13 @@ from typing import Optional
 import yaml
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+#from torch.cuda.amp import GradScaler, autocast
+try:
+    from torch.amp import GradScaler, autocast
+    TORCH_AMP_NEW_API = True
+except ImportError:
+    from torch.cuda.amp import GradScaler, autocast
+    TORCH_AMP_NEW_API = False
 from torch.utils.data import DistributedSampler
 from tqdm import tqdm
 from typing import cast
@@ -135,6 +141,7 @@ def train_one_epoch(
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
+    use_channels_last: bool,
     epoch: int,
     dist_manager: DistributedManager,
     scaler: GradScaler | None = None,
@@ -154,13 +161,21 @@ def train_one_epoch(
     
     for images, labels in train_iter:
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+        if use_channels_last:
+            images = images.to(memory_format=torch.channels_last)
+
         
         optimizer.zero_grad(set_to_none=True)
         
         if use_amp and scaler is not None:
-            with autocast():
-                outputs = model(images)
-                loss = criterion(outputs, labels)
+            if 'TORCH_AMP_NEW_API' in globals() and TORCH_AMP_NEW_API:
+                with autocast(device_type='cuda'):
+                    outputs = model(images)
+                    loss = criterion(outputs, labels)
+            else:
+                with autocast():
+                    outputs = model(images)
+                    loss = criterion(outputs, labels)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
@@ -205,6 +220,7 @@ def validate(
     criterion: nn.Module,
     device: torch.device,
     epoch: int,
+    use_channels_last: bool,
     dist_manager: DistributedManager,
     use_amp: bool = True
 ) -> dict:
@@ -223,10 +239,18 @@ def validate(
     for images, labels in val_iter:
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
+        if use_channels_last:
+            images = images.to(memory_format=torch.channels_last)
+        
         if use_amp:
-            with autocast():
-                outputs = model(images)
-                loss = criterion(outputs, labels)
+            if 'TORCH_AMP_NEW_API' in globals() and TORCH_AMP_NEW_API:
+                with autocast(device_type='cuda'):
+                    outputs = model(images)
+                    loss = criterion(outputs, labels)
+            else:
+                with autocast():
+                    outputs = model(images)
+                    loss = criterion(outputs, labels)
         else:
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -319,7 +343,11 @@ def load_checkpoint(
 
 
 def main(args):
-    # Initialize distributed training
+    local_rank = int(os.environ.get("LOCAL_RANK", args.local_rank if args.local_rank is not None else 0))
+    
+    if torch.cuda.is_available():
+        torch.cuda.set_device(local_rank)
+
     dist_manager = DistributedManager(backend="nccl")
     dist_manager.setup(local_rank=args.local_rank)
     
@@ -378,6 +406,12 @@ def main(args):
     num_params = sum(p.numel() for p in model.parameters())
     if dist_manager.is_main_process:
         logger.info(f"Model: {cfg['model']['name']}, Parameters: {num_params:,}")
+
+    use_channels_last = cfg.get("training", {}).get("channels_last", False)
+    if use_channels_last:
+        model = model.to(memory_format=torch.channels_last)
+        if dist_manager.is_main_process:
+            logger.info("Using channels-last (NHWC) memory format")
     
     # Compile model for faster training (PyTorch 2.0+)
     # Note: torch.compile should be done before DDP wrapping
@@ -399,16 +433,23 @@ def main(args):
     
     # Mixed precision
     use_amp = cfg.get("training", {}).get("use_amp", True) and device.type == "cuda"
-    scaler = GradScaler() if use_amp else None
+    #scaler = GradScaler() if use_amp else None
+    if use_amp:
+        if TORCH_AMP_NEW_API:
+            scaler = GradScaler('cuda')
+        else:
+            scaler = GradScaler()
+    else:
+        scaler = None
     if dist_manager.is_main_process:
         logger.info(f"Mixed precision training: {use_amp}")
     
     # Build dataloaders with distributed samplers
     train_loader, val_loader, train_sampler, val_sampler = build_dataloader(cfg, dist_manager)
-    
+
     train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
     fraction_str = f" ({train_fraction*100:.0f}% of full dataset)" if train_fraction < 1.0 else ""
-    
+
     if dist_manager.is_main_process:
         total_train = len(train_loader.dataset)  # type: ignore
         total_val = len(val_loader.dataset)  # type: ignore
@@ -451,13 +492,13 @@ def main(args):
         
         # Train
         train_metrics = train_one_epoch(
-            model, train_loader, criterion, optimizer, device, epoch,
-            dist_manager, scaler, use_amp
+            model, train_loader, criterion, optimizer, device,
+            use_channels_last, epoch, dist_manager, scaler, use_amp
         )
         
         # Validate
         val_metrics = validate(
-            model, val_loader, criterion, device, epoch, dist_manager, use_amp
+            model, val_loader, criterion, device,use_channels_last, epoch, dist_manager, use_amp
         )
         
         # Update scheduler

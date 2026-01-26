@@ -45,6 +45,7 @@ training:
   compile: true                # Enable for PyTorch 2.0+ speedup
   seed: 42
   sync_bn: true                 # Recommended for DDP with small per-GPU batch
+  channels_last: true
   
   # For step scheduler (ImageNet classic recipe)
   # scheduler: step

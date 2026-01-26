@@ -30,6 +30,7 @@ training:
   use_amp: true
   compile: false            # torch.compile - disable for small models/datasets
   seed: 42
+  channels_last: true
 
 # Logging configuration
 # All outputs (checkpoints, logs, history.csv) are saved to logs/{experiment_name}/
