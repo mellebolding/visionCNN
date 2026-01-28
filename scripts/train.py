@@ -356,17 +356,23 @@ def main(args):
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
-    # Automatically set ImageNet root based on hostname if needed
     if cfg.get("data", {}).get("dataset", "").lower() == "imagenet":
         host = socket.gethostname().lower()
+        imagenet_root = None
+        
         if "guppy" in host:
-            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
+            imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
         elif "snellius" in host:
             imagenet_root = "/projects/prjs0771/melle/datasets/imagenet/ILSVRC/Data/CLS-LOC"
-        if cfg["data"].get("root", None) in (None, "<IMAGENET_ROOT>", "") or "/ILSVRC/Data/CLS-LOC" in str(cfg["data"].get("root", "")):
-            cfg["data"]["root"] = imagenet_root
-        # Optionally log the chosen root
-        print(f"[INFO] Using ImageNet root: {cfg['data']['root']}")
+        
+        # Replace if we detected a known host AND root is placeholder or empty
+        if imagenet_root is not None:
+            current_root = cfg["data"].get("root", "")
+            if current_root in (None, "<IMAGENET_ROOT>", "", "None"):
+                cfg["data"]["root"] = imagenet_root
+                print(f"[INFO] Auto-detected ImageNet root: {imagenet_root}")
+            else:
+                print(f"[INFO] Using ImageNet root from config: {current_root}")
     
     # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)

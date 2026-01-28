@@ -1,4 +1,5 @@
 """Dataset factory for building train/val dataloaders."""
+import os
 from typing import Optional, Tuple
 
 import torch
@@ -148,10 +149,16 @@ def build_dataset(cfg, is_train=True):
             transform=transform
         )
     elif dataset_name == "imagenet":
+        # Use ImageFolder for already-extracted ImageNet
         split = "train" if is_train else "val"
-        dataset = torchvision.datasets.ImageNet(
-            root=data_root,
-            split=split,
+        data_path = os.path.join(data_root, split)
+        
+        # Check if path exists
+        if not os.path.exists(data_path):
+            raise ValueError(f"ImageNet split directory not found: {data_path}")
+        
+        dataset = torchvision.datasets.ImageFolder(
+            root=data_path,
             transform=transform
         )
     else:
