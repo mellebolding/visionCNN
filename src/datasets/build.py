@@ -222,7 +222,22 @@ def build_dataloader(
     train_sampler = None
     val_sampler = None
     
+    # if dist_manager is not None and dist_manager.is_distributed:
+    #     train_sampler = DistributedSampler(
+    #         train_dataset,
+    #         num_replicas=dist_manager.world_size,
+    #         rank=dist_manager.rank,
+    #         shuffle=True,
+    #         seed=seed
+    #     )
+    #     val_sampler = DistributedSampler(
+    #         val_dataset,
+    #         num_replicas=dist_manager.world_size,
+    #         rank=dist_manager.rank,
+    #         shuffle=False
+    #     )
     if dist_manager is not None and dist_manager.is_distributed:
+        # Train sampler as usual
         train_sampler = DistributedSampler(
             train_dataset,
             num_replicas=dist_manager.world_size,
@@ -230,12 +245,12 @@ def build_dataloader(
             shuffle=True,
             seed=seed
         )
-        val_sampler = DistributedSampler(
-            val_dataset,
-            num_replicas=dist_manager.world_size,
-            rank=dist_manager.rank,
-            shuffle=False
-        )
+
+        # Validation: only rank 0 runs it
+        if dist_manager.rank == 0:
+            val_sampler = None
+        else:
+            val_sampler = torch.utils.data.SubsetRandomSampler([])
     
     train_loader = DataLoader(
         train_dataset,

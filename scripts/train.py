@@ -496,16 +496,19 @@ def main(args):
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
         
-        # Train
         train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device,
             use_channels_last, epoch, dist_manager, scaler, use_amp
         )
-        
-        # Validate
-        val_metrics = validate(
-            model, val_loader, criterion, device,use_channels_last, epoch, dist_manager, use_amp
-        )
+
+        # Validate ONLY on rank 0
+        if dist_manager.rank == 0:
+            val_metrics = validate(
+                model, val_loader, criterion, device,
+                use_channels_last, epoch, dist_manager, use_amp
+            )
+        else:
+            val_metrics = {"loss": 0.0, "accuracy": 0.0}
         
         # Update scheduler
         if scheduler is not None:
