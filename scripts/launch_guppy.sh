@@ -60,6 +60,8 @@ MASTER_PORT=${MASTER_PORT:-29500}
 # =============================================================================
 
 # Suppress OMP_NUM_THREADS warning
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 
 

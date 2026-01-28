@@ -244,7 +244,9 @@ def build_dataloader(
         sampler=train_sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=True, 
+        prefetch_factor=4, 
     )
     
     val_loader = DataLoader(
@@ -253,7 +255,9 @@ def build_dataloader(
         shuffle=False,
         sampler=val_sampler,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        persistent_workers=True, 
+        prefetch_factor=4, 
     )
     
     return train_loader, val_loader, train_sampler, val_sampler

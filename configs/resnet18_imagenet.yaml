@@ -33,7 +33,7 @@ data:
 # Training configuration  
 training:
   epochs: 40
-  batch_size: 256               # Per-GPU batch size (effective = batch_size * num_gpus)
+  batch_size: 128               # Per-GPU batch size (effective = batch_size * num_gpus)
   lr: 0.1                       # Base LR for batch_size=256
   min_lr: 0.0
   weight_decay: 1e-4
