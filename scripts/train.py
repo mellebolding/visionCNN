@@ -363,7 +363,7 @@ def main(args):
         if "guppy" in host:
             imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
         elif "snellius" in host:
-            imagenet_root = "/projects/prjs0771/melle/datasets/imagenet/ILSVRC/Data/CLS-LOC"
+            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
         
         # Replace if we detected a known host AND root is placeholder or empty
         if imagenet_root is not None:
@@ -501,14 +501,11 @@ def main(args):
             use_channels_last, epoch, dist_manager, scaler, use_amp
         )
 
-        # Validate ONLY on rank 0
-        if dist_manager.rank == 0:
-            val_metrics = validate(
-                model, val_loader, criterion, device,
-                use_channels_last, epoch, dist_manager, use_amp
-            )
-        else:
-            val_metrics = {"loss": 0.0, "accuracy": 0.0}
+        val_metrics = validate(
+            model, val_loader, criterion, device,
+            epoch, use_channels_last, dist_manager, use_amp
+        )
+
         
         # Update scheduler
         if scheduler is not None:
