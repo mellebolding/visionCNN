@@ -148,23 +148,116 @@ def build_dataset(cfg, is_train=True):
             download=True,
             transform=transform
         )
+    # elif dataset_name == "imagenet":
+    #     # Use ImageFolder for already-extracted ImageNet
+    #     split = "train" if is_train else "val"
+    #     data_path = os.path.join(data_root, split)
+        
+    #     # Check if path exists
+    #     if not os.path.exists(data_path):
+    #         raise ValueError(f"ImageNet split directory not found: {data_path}")
+        
+    #     dataset = torchvision.datasets.ImageFolder(
+    #         root=data_path,
+    #         transform=transform
+    #     )
     elif dataset_name == "imagenet":
-        # Use ImageFolder for already-extracted ImageNet
         split = "train" if is_train else "val"
         data_path = os.path.join(data_root, split)
         
-        # Check if path exists
         if not os.path.exists(data_path):
             raise ValueError(f"ImageNet split directory not found: {data_path}")
         
-        dataset = torchvision.datasets.ImageFolder(
-            root=data_path,
-            transform=transform
-        )
+        # Check if organized (has class subdirectories)
+        subdirs = [d for d in os.listdir(data_path) if os.path.isdir(os.path.join(data_path, d)) and d.startswith('n')]
+        
+        if len(subdirs) > 100:  # Organized
+            dataset = torchvision.datasets.ImageFolder(
+                root=data_path,
+                transform=transform
+            )
+        else:  # Flat validation - use XML annotations
+            dataset = ImageNetFlatWithXML(
+                root=data_root,
+                split=split,
+                transform=transform
+            )
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
     return dataset
+
+class ImageNetFlatWithXML(torch.utils.data.Dataset):
+    """ImageNet validation dataset using XML annotations."""
+    
+    def __init__(self, root, split="val", transform=None):
+        import xml.etree.ElementTree as ET
+        from PIL import Image
+        self.root = root
+        self.split = split
+        self.transform = transform
+        # Set up correct paths for images and annotations
+        if split == "val":
+            # Support both .../ILSVRC and .../ILSVRC/Data/CLS-LOC as root
+            if os.path.basename(root) == "CLS-LOC" and os.path.basename(os.path.dirname(root)) == "Data":
+                # root = .../ILSVRC/Data/CLS-LOC
+                ilsvrc_root = os.path.dirname(os.path.dirname(root))
+                self.img_dir = root + "/val"
+                self.ann_dir = os.path.join(ilsvrc_root, "Annotations", "CLS-LOC", "val")
+            else:
+                # root = .../ILSVRC
+                self.img_dir = os.path.join(root, "Data", "CLS-LOC", "val")
+                self.ann_dir = os.path.join(root, "Annotations", "CLS-LOC", "val")
+        else:
+            self.img_dir = os.path.join(root, split)
+            self.ann_dir = self.img_dir  # fallback for train or other splits
+        # Get class list from train directory
+        train_dir = os.path.join(root, "train")
+        if not os.path.exists(train_dir):
+            # Try to infer class list from annotation files if train_dir doesn't exist
+            all_classes = set()
+            for xml_file in os.listdir(self.ann_dir):
+                if xml_file.endswith('.xml'):
+                    xml_path = os.path.join(self.ann_dir, xml_file)
+                    tree = ET.parse(xml_path)
+                    root_elem = tree.getroot()
+                    class_name = root_elem.find('.//object/name').text
+                    all_classes.add(class_name)
+            self.classes = sorted(list(all_classes))
+        else:
+            self.classes = sorted([d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))])
+        self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
+        # Build samples list from XML files
+        self.samples = []
+        xml_files = sorted([f for f in os.listdir(self.ann_dir) if f.endswith('.xml')])
+        for xml_file in xml_files:
+            xml_path = os.path.join(self.ann_dir, xml_file)
+            tree = ET.parse(xml_path)
+            root_elem = tree.getroot()
+            # Get class name from XML
+            class_name = root_elem.find('.//object/name').text
+            # Get image filename
+            img_name = root_elem.find('filename').text
+            # ImageNet val images may not have .JPEG in filename in XML, so ensure extension
+            if not img_name.lower().endswith('.jpeg'):
+                img_name = f"{img_name}.JPEG"
+            img_path = os.path.join(self.img_dir, img_name)
+            if os.path.exists(img_path) and class_name in self.class_to_idx:
+                self.samples.append((img_path, self.class_to_idx[class_name]))
+    
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        from PIL import Image
+        
+        img_path, label = self.samples[idx]
+        img = Image.open(img_path).convert('RGB')
+        
+        if self.transform is not None:
+            img = self.transform(img)
+        
+        return img, label
 
 
 def subsample_dataset(dataset, fraction: float, seed: int = 42):
