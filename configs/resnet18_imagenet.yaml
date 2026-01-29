@@ -16,19 +16,22 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 8
+  num_workers: 16
   pin_memory: true
   # Standard ImageNet augmentation
+  rand_augment: false
+  color_jitter: false
+  random_erasing: false
   auto_augment: false
-  rand_augment: true
-  rand_augment_n: 2
-  rand_augment_m: 9
-  color_jitter: true
-  color_jitter_brightness: 0.4
-  color_jitter_contrast: 0.4
-  color_jitter_saturation: 0.4
-  color_jitter_hue: 0.1
-  random_erasing: true
+  # rand_augment: true
+  # rand_augment_n: 2
+  # rand_augment_m: 9
+  # color_jitter: true
+  # color_jitter_brightness: 0.4
+  # color_jitter_contrast: 0.4
+  # color_jitter_saturation: 0.4
+  # color_jitter_hue: 0.1
+  # random_erasing: true
 
 # Training configuration  
 training:
@@ -42,7 +45,7 @@ training:
   scheduler: cosine             # or use 'step' with milestones below
   label_smoothing: 0.1
   use_amp: true
-  compile: true                # Enable for PyTorch 2.0+ speedup
+  compile: false                # Enable for PyTorch 2.0+ speedup
   seed: 42
   sync_bn: true                 # Recommended for DDP with small per-GPU batch
   channels_last: true
