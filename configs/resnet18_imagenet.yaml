@@ -16,8 +16,10 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 16
+  num_workers: 4
   pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
   # Standard ImageNet augmentation
   rand_augment: false
   color_jitter: false

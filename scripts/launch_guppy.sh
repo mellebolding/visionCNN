@@ -67,15 +67,12 @@ export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 
 # Force NCCL to use only IPv4 sockets (suppress c10d socket warnings)
 export NCCL_SOCKET_FAMILY=IPv4
-export GLOO_SOCKET_IFNAME=lo
-export TP_SOCKET_IFNAME=lo
 export NCCL_IB_DISABLE=1
+export NCCL_DEBUG=WARN
+export NCCL_ASYNC_ERROR_HANDLING=1
+
 
 export MASTER_ADDR=127.0.0.1
-
-
-export TP_SOCKET_IFNAME=lo
-export GLOO_SOCKET_IFNAME=lo
 
 # Reduce NCCL verbosity (optional)
 export NCCL_DEBUG=WARN
