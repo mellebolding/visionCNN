@@ -244,6 +244,10 @@ class ImageNetFlatWithXML(torch.utils.data.Dataset):
             img_path = os.path.join(self.img_dir, img_name)
             if os.path.exists(img_path) and class_name in self.class_to_idx:
                 self.samples.append((img_path, self.class_to_idx[class_name]))
+        # after building samples
+        self.samples = sorted(self.samples, key=lambda x: x[0])
+
+
     
     def __len__(self):
         return len(self.samples)
@@ -301,6 +305,8 @@ def build_dataloader(
     batch_size = cfg.get("training", {}).get("batch_size", 64)
     num_workers = cfg.get("data", {}).get("num_workers", 4)
     pin_memory = cfg.get("data", {}).get("pin_memory", True)
+    persistent_workers = cfg.get("data", {}).get("persistent_workers", False)
+    prefetch_factor = cfg.get("data", {}).get("prefetch_factor", 2)
     train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
     seed = cfg.get("training", {}).get("seed", 42)
     
@@ -330,7 +336,6 @@ def build_dataloader(
     #         shuffle=False
     #     )
     if dist_manager is not None and dist_manager.is_distributed:
-        # Train sampler as usual
         train_sampler = DistributedSampler(
             train_dataset,
             num_replicas=dist_manager.world_size,
@@ -339,33 +344,35 @@ def build_dataloader(
             seed=seed
         )
 
-        # Validation: only rank 0 runs it
-        if dist_manager.rank == 0:
-            val_sampler = None
-        else:
-            val_sampler = torch.utils.data.SubsetRandomSampler([])
+        # Validation runs on all ranks (no sampler needed)
+        val_sampler = None
+
     
+    # prefetch_factor requires num_workers > 0
+    loader_kwargs = {
+        "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "persistent_workers": persistent_workers and num_workers > 0,
+    }
+    if num_workers > 0:
+        loader_kwargs["prefetch_factor"] = prefetch_factor
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=(train_sampler is None),  # Don't shuffle if using sampler
+        shuffle=(train_sampler is None),
         sampler=train_sampler,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
         drop_last=True,
-        persistent_workers=True, 
-        prefetch_factor=4, 
+        **loader_kwargs,
     )
-    
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         sampler=val_sampler,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-        persistent_workers=True, 
-        prefetch_factor=4, 
+        drop_last=False,  # Don't drop last for validation
+        **loader_kwargs,
     )
     
     return train_loader, val_loader, train_sampler, val_sampler

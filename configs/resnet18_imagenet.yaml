@@ -16,10 +16,10 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 16
+  num_workers: 6                # 6 workers x 2 GPUs = 12, leaves headroom for main processes
   pin_memory: true
-  persistent_workers: false
-  prefetch_factor: 2
+  persistent_workers: false      # Disabled - can cause issues with DDP
+  prefetch_factor: 4             # Buffer more batches ahead
   # Standard ImageNet augmentation
   rand_augment: false
   color_jitter: false
@@ -38,7 +38,7 @@ data:
 # Training configuration  
 training:
   epochs: 40
-  batch_size: 256               # Per-GPU batch size (effective = batch_size * num_gpus)
+  batch_size: 512               # Per-GPU batch size - larger batches amortize data loading
   lr: 0.1                       # Base LR for batch_size=256
   min_lr: 0.0
   weight_decay: 1e-4
@@ -47,7 +47,7 @@ training:
   scheduler: cosine             # or use 'step' with milestones below
   label_smoothing: 0.1
   use_amp: true
-  compile: false                # Enable for PyTorch 2.0+ speedup
+  compile: false                # Disabled - can cause hangs with DDP
   seed: 42
   sync_bn: false                 # Recommended for DDP with small per-GPU batch
   channels_last: true

@@ -225,7 +225,9 @@ def validate(
     use_amp: bool = True
 ) -> dict:
     """Validate the model."""
-    model.eval()
+    # Use unwrapped model to avoid DDP buffer sync issues when validating on single rank
+    eval_model = model.module if hasattr(model, 'module') else model
+    eval_model.eval()
     
     total_loss = 0.0
     correct = 0
@@ -245,32 +247,24 @@ def validate(
         if use_amp:
             if 'TORCH_AMP_NEW_API' in globals() and TORCH_AMP_NEW_API:
                 with autocast(device_type='cuda'):
-                    outputs = model(images)
+                    outputs = eval_model(images)
                     loss = criterion(outputs, labels)
             else:
                 with autocast():
-                    outputs = model(images)
+                    outputs = eval_model(images)
                     loss = criterion(outputs, labels)
         else:
-            outputs = model(images)
+            outputs = eval_model(images)
             loss = criterion(outputs, labels)
-        
+
         total_loss += loss.item() * images.size(0)
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
-    
-    # Aggregate metrics across all processes
-    if dist_manager.is_distributed:
-        metrics_tensor = torch.tensor(
-            [total_loss, correct, total],
-            device=device
-        )
-        dist_manager.all_reduce(metrics_tensor)
-        total_loss = metrics_tensor[0].item()
-        correct = int(metrics_tensor[1].item())
-        total = int(metrics_tensor[2].item())
-    
+
+    # Restore model to training mode
+    eval_model.train()
+
     return {
         "loss": total_loss / total,
         "accuracy": 100. * correct / total
@@ -501,28 +495,28 @@ def main(args):
             use_channels_last, epoch, dist_manager, scaler, use_amp
         )
 
-        val_metrics = validate(
-            model, val_loader, criterion, device,
-            epoch, use_channels_last, dist_manager, use_amp
-        )
+        # Validation on main process only
+        if dist_manager.is_main_process:
+            val_metrics = validate(
+                model, val_loader, criterion, device,
+                epoch, use_channels_last, dist_manager, use_amp
+            )
 
-        
         # Update scheduler
         if scheduler is not None:
             scheduler.step()
         
         epoch_time = time.time() - start_time
         current_lr = optimizer.param_groups[0]["lr"]
-        
-        # Track history (all processes have same aggregated values)
-        history["train_loss"].append(train_metrics["loss"])
-        history["train_acc"].append(train_metrics["accuracy"])
-        history["val_loss"].append(val_metrics["loss"])
-        history["val_acc"].append(val_metrics["accuracy"])
-        history["lr"].append(current_lr)
-        
+
         # Only main process logs and saves
         if dist_manager.is_main_process:
+            # Track history
+            history["train_loss"].append(train_metrics["loss"])
+            history["train_acc"].append(train_metrics["accuracy"])
+            history["val_loss"].append(val_metrics["loss"])
+            history["val_acc"].append(val_metrics["accuracy"])
+            history["lr"].append(current_lr)
             # Save history to CSV
             save_history_csv(history, os.path.join(run_dir, "history.csv"))
             
