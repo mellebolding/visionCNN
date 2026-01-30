@@ -16,7 +16,7 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 6                # 6 workers x 2 GPUs = 12, leaves headroom for main processes
+  num_workers: 6                # CPU has 16 cores, adjust to number of GPUs
   pin_memory: true
   persistent_workers: false      # Disabled - can cause issues with DDP
   prefetch_factor: 4             # Buffer more batches ahead
@@ -38,7 +38,7 @@ data:
 # Training configuration  
 training:
   epochs: 40
-  batch_size: 512               # Per-GPU batch size - larger batches amortize data loading
+  batch_size: 256               # Per-GPU batch size - larger batches amortize data loading
   lr: 0.1                       # Base LR for batch_size=256
   min_lr: 0.0
   weight_decay: 1e-4
@@ -47,7 +47,7 @@ training:
   scheduler: cosine             # or use 'step' with milestones below
   label_smoothing: 0.1
   use_amp: true
-  compile: false                # Disabled - can cause hangs with DDP
+  compile: true                # Disabled - can cause hangs with DDP
   seed: 42
   sync_bn: false                 # Recommended for DDP with small per-GPU batch
   channels_last: true
