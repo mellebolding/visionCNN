@@ -1,6 +1,15 @@
-"""Dataset factory for building train/val dataloaders."""
+"""Dataset factory for building train/val dataloaders.
+
+Supports multiple data loading backends:
+- pytorch: Standard PyTorch DataLoader with torchvision (default)
+- dali: NVIDIA DALI for GPU-accelerated loading (requires nvidia-dali-cuda120)
+- cached: RAM-cached loading (see cached_imagenet.py)
+
+Configure via the 'data.backend' field in your config YAML.
+"""
 import os
-from typing import Optional, Tuple
+import warnings
+from typing import Optional, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader, random_split, Subset, Dataset, DistributedSampler
@@ -399,3 +408,77 @@ def get_num_classes(dataset_name):
         "imagenet": 1000,
     }
     return num_classes_map.get(dataset_name.lower(), 10)
+
+
+def build_dataloader_with_backend(
+    cfg: dict,
+    dist_manager: Optional["DistributedManager"] = None,  # type: ignore
+) -> Tuple[Union[DataLoader, "DALIWrapper"], Union[DataLoader, "DALIWrapper"], Optional[DistributedSampler], Optional[DistributedSampler]]:  # type: ignore
+    """Build dataloaders with configurable backend.
+
+    This is the main entry point that routes to the appropriate data loading backend
+    based on the config. Supports graceful fallback if DALI is not available.
+
+    Backends:
+        - pytorch: Standard PyTorch DataLoader (default, works everywhere)
+        - dali: NVIDIA DALI GPU-accelerated loading (requires nvidia-dali)
+        - cached: RAM-cached loading for ImageNet (requires ~180GB RAM)
+
+    Args:
+        cfg: Configuration dictionary with data.backend field
+        dist_manager: DistributedManager for DDP training
+
+    Returns:
+        Tuple of (train_loader, val_loader, train_sampler, val_sampler)
+        Note: For DALI backend, samplers are None (handled internally by DALI)
+
+    Config example:
+        data:
+          backend: dali  # or "pytorch" or "cached"
+          dali:
+            num_threads: 4
+            prefetch_queue_depth: 2
+            decoder_device: mixed  # "mixed" or "gpu"
+    """
+    backend = cfg.get("data", {}).get("backend", "pytorch").lower()
+
+    if backend == "dali":
+        try:
+            from src.datasets.dali_imagenet import build_dali_dataloader, is_dali_available
+
+            if not is_dali_available():
+                warnings.warn(
+                    "DALI backend requested but not installed. "
+                    "Falling back to PyTorch backend. "
+                    "Install with: conda install -c nvidia nvidia-dali-cuda120"
+                )
+                return build_dataloader(cfg, dist_manager)
+
+            train_loader, val_loader = build_dali_dataloader(cfg, dist_manager)
+            # DALI handles sharding internally, no external samplers needed
+            return train_loader, val_loader, None, None
+
+        except ImportError as e:
+            warnings.warn(
+                f"Failed to import DALI: {e}. Falling back to PyTorch backend."
+            )
+            return build_dataloader(cfg, dist_manager)
+
+    elif backend == "cached":
+        try:
+            from src.datasets.cached_imagenet import build_cached_dataloader
+            return build_cached_dataloader(cfg, dist_manager)
+        except ImportError as e:
+            warnings.warn(
+                f"Failed to import cached backend: {e}. Falling back to PyTorch backend."
+            )
+            return build_dataloader(cfg, dist_manager)
+
+    else:
+        # Default: PyTorch backend
+        if backend != "pytorch":
+            warnings.warn(
+                f"Unknown backend '{backend}', using 'pytorch' instead. "
+                f"Valid backends: pytorch, dali, cached"
+            )
+        return build_dataloader(cfg, dist_manager)

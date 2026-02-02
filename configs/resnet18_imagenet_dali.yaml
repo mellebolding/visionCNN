@@ -1,0 +1,76 @@
+# ResNet18 ImageNet Configuration - DALI Backend
+#
+# This config uses NVIDIA DALI for GPU-accelerated data loading.
+# DALI moves image decoding and augmentation to the GPU, significantly
+# reducing CPU bottleneck compared to standard PyTorch DataLoader.
+#
+# Benefits over PyTorch DataLoader:
+#   - GPU-accelerated JPEG decoding
+#   - GPU-accelerated augmentations
+#   - Lower CPU usage (important for systems with limited CPU cores)
+#   - Better GPU utilization
+#
+# Requirements:
+#   - nvidia-dali-cuda120 (conda install -c nvidia nvidia-dali-cuda120)
+#   - ImageNet organized as train/val with class subdirectories
+#
+# Usage:
+#   Single GPU: python scripts/train.py --config configs/resnet18_imagenet_dali.yaml
+#   Multi-GPU:  torchrun --nproc_per_node=3 scripts/train.py --config configs/resnet18_imagenet_dali.yaml
+#
+# Fallback: If DALI is not installed, automatically falls back to PyTorch DataLoader.
+
+experiment_name: resnet18_imagenet_dali
+
+# Model configuration
+model:
+  name: resnet18
+  num_classes: 1000
+
+# Data configuration
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"  # Auto-detected based on hostname (guppy/snellius)
+  img_size: 224
+
+  # Backend selection: pytorch, dali, or cached
+  backend: dali
+
+  # DALI-specific settings
+  dali:
+    num_threads: 4            # DALI internal worker threads (per GPU)
+    prefetch_queue_depth: 2   # Number of batches to prefetch
+    decoder_device: mixed     # "mixed" = CPU decode + GPU ops (good for most systems)
+                              # "gpu" = full GPU decode (requires fast NVMe storage)
+    # cpu: false              # Set to true to run DALI on CPU (for debugging)
+
+  # Note: DALI handles augmentations internally (RandomResizedCrop, HorizontalFlip, Normalize)
+  # These PyTorch augmentation flags are NOT used with DALI backend:
+  # - auto_augment, rand_augment, color_jitter, random_erasing
+  # - gpu_transforms (DALI already runs on GPU)
+
+# Training configuration
+training:
+  epochs: 90
+  batch_size: 256             # Per-GPU batch size (DALI is memory efficient)
+  lr: 0.1                     # Base learning rate (scaled for batch size)
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true               # torch.compile for additional speedup
+  sync_bn: false
+  channels_last: true         # NHWC memory format for better GPU cache
+  seed: 42
+
+  # Speed optimizations
+  val_frequency: 5            # Validate every N epochs
+  save_frequency: 10          # Save checkpoint every N epochs
+  disable_progress_bar: false
+
+# Logging configuration
+logging:
+  log_dir: logs

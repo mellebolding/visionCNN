@@ -42,7 +42,7 @@ from typing import cast
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.factory import build_model
-from src.datasets.build import build_dataloader
+from src.datasets.build import build_dataloader, build_dataloader_with_backend
 from src.datasets.gpu_transforms import build_gpu_transforms
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
@@ -467,7 +467,14 @@ def main(args):
         logger.info(f"Mixed precision training: {use_amp}")
     
     # Build dataloaders with distributed samplers
-    train_loader, val_loader, train_sampler, val_sampler = build_dataloader(cfg, dist_manager)
+    # Use backend-aware loader (supports pytorch, dali, cached)
+    backend = cfg.get("data", {}).get("backend", "pytorch").lower()
+    train_loader, val_loader, train_sampler, val_sampler = build_dataloader_with_backend(cfg, dist_manager)
+
+    # Check if using DALI (for special handling)
+    use_dali = backend == "dali" and hasattr(train_loader, 'reset')
+    if use_dali and dist_manager.is_main_process:
+        logger.info("Using DALI GPU-accelerated data loading")
 
     # Build GPU transforms if enabled
     use_gpu_transforms = cfg.get("data", {}).get("gpu_transforms", False)
@@ -525,8 +532,12 @@ def main(args):
         start_time = time.time()
 
         # Set epoch for distributed sampler (important for shuffling!)
+        # DALI handles this internally with shuffle_after_epoch
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
+        elif use_dali and epoch > start_epoch:
+            # DALI auto-resets, but we call reset explicitly for clarity
+            train_loader.reset()
 
         train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device,

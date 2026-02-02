@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 """
-Pre-cache ImageNet to disk/RAM for fast training.
+Pre-cache ImageNet to disk for fast training.
 
-Run this ONCE before training to create the cache files.
-Then all DDP ranks can memory-map the same files.
+This script saves images incrementally to avoid OOM during the save step.
+Uses memory-mapped files to write directly to disk without loading everything into RAM.
 
 Usage:
-    # Cache to /dev/shm (fastest, but limited space)
-    python scripts/precache_imagenet.py --root /path/to/imagenet --cache-dir /dev/shm
-
-    # Cache to disk (slower but unlimited space)
-    python scripts/precache_imagenet.py --root /path/to/imagenet --cache-dir /path/to/cache
+    python scripts/precache_imagenet.py --cache-dir /path/to/cache
 
     # Check cache status
-    python scripts/precache_imagenet.py --root /path/to/imagenet --status
+    python scripts/precache_imagenet.py --status
 
     # Clean up cache
-    python scripts/precache_imagenet.py --clean --cache-dir /dev/shm
+    python scripts/precache_imagenet.py --clean
 """
 import argparse
 import os
@@ -46,7 +42,6 @@ def check_cache_status(cache_dir: str, image_size: int = 224):
     """Check if cache exists and print status."""
     print(f"\nCache directory: {cache_dir}")
 
-    # Check disk space
     if os.path.exists(cache_dir):
         usage = shutil.disk_usage(cache_dir)
         print(f"Disk space: {usage.free/1e9:.1f} GB free / {usage.total/1e9:.1f} GB total")
@@ -66,15 +61,18 @@ def check_cache_status(cache_dir: str, image_size: int = 224):
             print(f"  ✗ Cache not found")
 
 
-def create_cache(root: str, cache_dir: str, split: str, image_size: int = 224,
-                 num_workers: int = 16, resize_size: int = 256):
-    """Create cache for a single split."""
+def create_cache_incremental(root: str, cache_dir: str, split: str, image_size: int = 224,
+                              resize_size: int = 256):
+    """Create cache incrementally using memory-mapped files.
+
+    This avoids OOM by writing directly to disk instead of accumulating in RAM.
+    """
     paths = get_cache_paths(cache_dir, split, image_size)
 
     # Check if already exists
     if os.path.exists(paths['images']) and os.path.exists(paths['labels']):
         print(f"[{split}] Cache already exists, skipping")
-        return
+        return True
 
     # Setup transform
     transform = transforms.Compose([
@@ -86,47 +84,69 @@ def create_cache(root: str, cache_dir: str, split: str, image_size: int = 224,
     data_path = os.path.join(root, split)
     if not os.path.exists(data_path):
         print(f"[{split}] ERROR: Path not found: {data_path}")
-        return
+        return False
 
     print(f"\n[{split}] Loading from: {data_path}")
     dataset = ImageFolder(data_path, transform=transform)
-    print(f"[{split}] Found {len(dataset)} images")
+    num_images = len(dataset)
+    print(f"[{split}] Found {num_images} images")
 
-    # Use num_workers=0 to avoid /dev/shm issues entirely
-    # Slower but guaranteed to work
+    # Calculate total size and create memory-mapped file
+    # Shape: [N, 3, H, W] for images, [N] for labels
+    img_shape = (num_images, 3, image_size, image_size)
+    img_size_gb = np.prod(img_shape) / 1e9  # uint8 = 1 byte
+    print(f"[{split}] Output shape: {img_shape}")
+    print(f"[{split}] Output size: {img_size_gb:.1f} GB")
+
+    # Check disk space
+    disk_free = shutil.disk_usage(cache_dir).free / 1e9
+    if disk_free < img_size_gb * 1.1:  # 10% buffer
+        print(f"[{split}] ERROR: Not enough disk space ({disk_free:.1f} GB free, need {img_size_gb:.1f} GB)")
+        return False
+
+    os.makedirs(cache_dir, exist_ok=True)
+
+    # Create memory-mapped files for writing
+    print(f"[{split}] Creating memory-mapped file: {paths['images']}")
+    images_mmap = np.memmap(paths['images'], dtype=np.uint8, mode='w+', shape=img_shape)
+    labels_arr = np.zeros(num_images, dtype=np.int64)
+
+    # Use single-process DataLoader (no shared memory issues)
     loader = DataLoader(
         dataset,
         batch_size=256,
-        num_workers=0,  # Single process - no shared memory needed
-        pin_memory=False,
+        num_workers=0,
         shuffle=False,
     )
 
-    images_list = []
-    labels_list = []
+    # Write directly to memory-mapped file
+    idx = 0
+    for imgs, lbls in tqdm(loader, desc=f"Caching {split}"):
+        batch_size = imgs.shape[0]
+        images_mmap[idx:idx + batch_size] = imgs.numpy()
+        labels_arr[idx:idx + batch_size] = lbls.numpy()
+        idx += batch_size
 
-    for imgs, lbls in tqdm(loader, desc=f"Loading {split}"):
-        images_list.append(imgs)
-        labels_list.append(lbls)
+        # Periodically flush to disk
+        if idx % 10000 == 0:
+            images_mmap.flush()
 
-    images = torch.cat(images_list).numpy()
-    labels = torch.cat(labels_list).numpy()
+    # Final flush and save labels
+    print(f"[{split}] Flushing to disk...")
+    images_mmap.flush()
+    del images_mmap  # Close the memmap
 
-    print(f"[{split}] Tensor shape: {images.shape}")
-    print(f"[{split}] Memory: {images.nbytes / 1e9:.1f} GB")
-
-    # Save
-    print(f"[{split}] Saving to: {paths['images']}")
-    os.makedirs(cache_dir, exist_ok=True)
-    np.save(paths['images'], images)
-    np.save(paths['labels'], labels)
+    print(f"[{split}] Saving labels...")
+    np.save(paths['labels'], labels_arr)
 
     # Write metadata
     with open(paths['meta'], 'w') as f:
-        f.write(f"shape={images.shape}\n")
-        f.write(f"dtype={images.dtype}\n")
+        f.write(f"num_images={num_images}\n")
+        f.write(f"shape={img_shape}\n")
+        f.write(f"dtype=uint8\n")
 
     print(f"[{split}] Done!")
+    return True
 
 
 def clean_cache(cache_dir: str, prefix: str = "imagenet_cache"):
@@ -158,10 +178,9 @@ def clean_cache(cache_dir: str, prefix: str = "imagenet_cache"):
 def main():
     parser = argparse.ArgumentParser(description="Pre-cache ImageNet for fast training")
     parser.add_argument("--root", type=str, help="ImageNet root directory")
-    parser.add_argument("--cache-dir", type=str, default="/dev/shm",
-                        help="Cache directory (default: /dev/shm)")
+    parser.add_argument("--cache-dir", type=str, default=None,
+                        help="Cache directory (default: next to ImageNet root)")
     parser.add_argument("--image-size", type=int, default=224, help="Image size")
-    parser.add_argument("--num-workers", type=int, default=16, help="DataLoader workers")
     parser.add_argument("--status", action="store_true", help="Check cache status")
     parser.add_argument("--clean", action="store_true", help="Clean up cache files")
     parser.add_argument("--train-only", action="store_true", help="Only cache training set")
@@ -179,6 +198,10 @@ def main():
             print("ERROR: Please specify --root")
             sys.exit(1)
 
+    # Default cache dir
+    if args.cache_dir is None:
+        args.cache_dir = os.path.join(os.path.dirname(args.root), "imagenet_cache")
+
     if args.clean:
         clean_cache(args.cache_dir)
         return
@@ -187,18 +210,8 @@ def main():
         check_cache_status(args.cache_dir, args.image_size)
         return
 
-    # Check available space
-    if os.path.exists(args.cache_dir):
-        free_gb = shutil.disk_usage(args.cache_dir).free / 1e9
-        print(f"Cache directory: {args.cache_dir}")
-        print(f"Free space: {free_gb:.1f} GB")
-
-        needed = 180 if not (args.train_only or args.val_only) else (170 if args.train_only else 10)
-        if free_gb < needed:
-            print(f"WARNING: May not have enough space (need ~{needed} GB)")
-            response = input("Continue anyway? [y/N] ")
-            if response.lower() != 'y':
-                sys.exit(1)
+    print(f"Cache directory: {args.cache_dir}")
+    print(f"Free space: {shutil.disk_usage(args.cache_dir if os.path.exists(args.cache_dir) else os.path.dirname(args.cache_dir)).free/1e9:.1f} GB")
 
     # Create cache
     splits = []
@@ -210,13 +223,15 @@ def main():
         splits = ['train', 'val']
 
     for split in splits:
-        create_cache(
+        success = create_cache_incremental(
             root=args.root,
             cache_dir=args.cache_dir,
             split=split,
             image_size=args.image_size,
-            num_workers=args.num_workers,
         )
+        if not success:
+            print(f"\n[{split}] FAILED")
+            sys.exit(1)
 
     print("\n" + "="*50)
     print("Cache creation complete!")
