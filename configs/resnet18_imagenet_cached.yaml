@@ -1,0 +1,54 @@
+# ResNet18 ImageNet Configuration - RAM Cached Version
+#
+# This config uses RAM-cached data loading for maximum GPU utilization.
+# Requires ~180 GB RAM to load the entire ImageNet dataset.
+#
+# Usage:
+#   Single GPU: python scripts/train_cached.py --config configs/resnet18_imagenet_cached.yaml
+#   Multi-GPU:  torchrun --nproc_per_node=3 scripts/train_cached.py --config configs/resnet18_imagenet_cached.yaml
+
+experiment_name: resnet18_imagenet_cached
+
+# Model configuration
+model:
+  name: resnet18
+  num_classes: 1000
+
+# Data configuration
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"  # Set by launcher script or auto-detected
+  img_size: 224
+  cache_workers: 16        # Workers for initial data loading into RAM
+
+  # Augmentations (applied on GPU via GPUAugmentations class)
+  # Note: random_flip is always enabled in cached mode
+  random_erasing: false
+
+  # These are NOT used in cached mode (augmentations are GPU-based):
+  # color_jitter, rand_augment, auto_augment are not implemented for cached mode
+
+# Training configuration
+training:
+  epochs: 40
+  batch_size: 640               # Per-GPU batch size
+  lr: 0.16                      # Scaled for batch_size=640
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true
+  sync_bn: false
+  channels_last: true
+
+  # Speed optimizations
+  val_frequency: 5
+  save_frequency: 5
+  disable_progress_bar: false
+
+# Logging configuration
+logging:
+  log_dir: logs
