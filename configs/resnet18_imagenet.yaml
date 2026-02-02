@@ -16,30 +16,29 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 6                # CPU has 16 cores, adjust to number of GPUs
+  num_workers: 5                # 5 × 3 GPUs = 15 workers total (CPU load reduced by GPU transforms)
   pin_memory: true
-  persistent_workers: false      # Disabled - can cause issues with DDP
-  prefetch_factor: 4             # Buffer more batches ahead
-  # Standard ImageNet augmentation
-  rand_augment: false
-  color_jitter: false
-  random_erasing: false
-  auto_augment: false
-  # rand_augment: true
-  # rand_augment_n: 2
-  # rand_augment_m: 9
-  # color_jitter: true
-  # color_jitter_brightness: 0.4
-  # color_jitter_contrast: 0.4
-  # color_jitter_saturation: 0.4
-  # color_jitter_hue: 0.1
-  # random_erasing: true
+  persistent_workers: true       # CRITICAL: Avoids worker respawn overhead between epochs
+  prefetch_factor: 4             # Buffer more batches for smoother pipeline
+  # Standard ImageNet augmentation (CPU-constrained system)
+  color_jitter: false                # Disabled - too expensive for 16-core system
+  color_jitter_brightness: 0.3
+  color_jitter_contrast: 0.3
+  color_jitter_saturation: 0.0
+  color_jitter_hue: 0.0
+  random_erasing: true               # GPU-based, no CPU overhead - good regularization!
 
-# Training configuration  
+  # Advanced augmentation (optional - enable for +1-2% accuracy)
+  rand_augment: false
+  rand_augment_n: 2                  # If enabled: 2 ops per image
+  rand_augment_m: 9                  # If enabled: moderate magnitude
+  auto_augment: false                # Not recommended (slower than RandAugment)
+
+# Training configuration
 training:
   epochs: 40
-  batch_size: 256               # Per-GPU batch size - larger batches amortize data loading
-  lr: 0.1                       # Base LR for batch_size=256
+  batch_size: 640               # Per-GPU batch size - maximize GPU utilization and reduce sync overhead
+  lr: 0.16                      # Scaled from 0.1 for batch_size=256 using linear scaling (640/400 ≈ 1.6x)
   min_lr: 0.0
   weight_decay: 1e-4
   optimizer: sgd
@@ -47,10 +46,14 @@ training:
   scheduler: cosine             # or use 'step' with milestones below
   label_smoothing: 0.1
   use_amp: true
-  compile: true                # Disabled - can cause hangs with DDP
-  seed: 42
+  compile: true                
   sync_bn: false                 # Recommended for DDP with small per-GPU batch
   channels_last: true
+
+  # Speed optimizations
+  val_frequency: 5              # Run validation every N epochs (not every epoch)
+  save_frequency: 5             # Save checkpoint every N epochs (always saves best + last)
+  disable_progress_bar: false   # Set to true for ~2% speedup
   
   # For step scheduler (ImageNet classic recipe)
   # scheduler: step

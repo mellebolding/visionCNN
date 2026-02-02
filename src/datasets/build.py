@@ -13,15 +13,22 @@ def get_transforms(cfg, is_train=True):
     img_size = cfg.get("data", {}).get("img_size", 32)
     data_cfg = cfg.get("data", {})
     dataset_name = data_cfg.get("dataset", "cifar10").lower()
-    
+
+    # Check if using GPU transforms (auto-detected based on hostname)
+    use_gpu_transforms = data_cfg.get("gpu_transforms", False)
+
     # Use ImageNet normalization for ImageNet, otherwise use simple normalization
-    if dataset_name == "imagenet":
-        normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
+    # Skip normalization if using GPU transforms (will be done on GPU)
+    if not use_gpu_transforms:
+        if dataset_name == "imagenet":
+            normalize = transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        else:
+            normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     else:
-        normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        normalize = None
     
     # ImageNet-style transforms (larger images, need resize)
     if dataset_name == "imagenet" or img_size >= 224:
@@ -55,12 +62,14 @@ def get_transforms(cfg, is_train=True):
                 ))
             
             transform_list.append(transforms.ToTensor())
-            
-            # Optional: Random erasing
-            if data_cfg.get("random_erasing", False):
+
+            # Optional: Random erasing (skip if using GPU transforms)
+            if data_cfg.get("random_erasing", False) and not use_gpu_transforms:
                 transform_list.append(transforms.RandomErasing(p=0.25))
-            
-            transform_list.append(normalize)
+
+            # Add normalization if not using GPU transforms
+            if normalize is not None:
+                transform_list.append(normalize)
         else:
             # Validation: resize to 256, center crop to 224
             resize_size = int(img_size / 0.875)  # 256 for img_size=224
@@ -68,8 +77,9 @@ def get_transforms(cfg, is_train=True):
                 transforms.Resize(resize_size),
                 transforms.CenterCrop(img_size),
                 transforms.ToTensor(),
-                normalize,
             ]
+            if normalize is not None:
+                transform_list.append(normalize)
     else:
         # CIFAR-style transforms (small images, use padding)
         if is_train:
@@ -106,16 +116,18 @@ def get_transforms(cfg, is_train=True):
             
             # ToTensor and optional random erasing
             transform_list.append(transforms.ToTensor())
-            
-            if data_cfg.get("random_erasing", False):
+
+            if data_cfg.get("random_erasing", False) and not use_gpu_transforms:
                 transform_list.append(transforms.RandomErasing(p=0.25))
-            
-            transform_list.append(normalize)
+
+            if normalize is not None:
+                transform_list.append(normalize)
         else:
             transform_list = [
                 transforms.ToTensor(),
-                normalize,
             ]
+            if normalize is not None:
+                transform_list.append(normalize)
     
     return transforms.Compose(transform_list)
 

@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.factory import build_model
 from src.datasets.build import build_dataloader
+from src.datasets.gpu_transforms import build_gpu_transforms
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
 
@@ -145,7 +146,9 @@ def train_one_epoch(
     epoch: int,
     dist_manager: DistributedManager,
     scaler: GradScaler | None = None,
-    use_amp: bool = True
+    use_amp: bool = True,
+    gpu_transforms: nn.Module | None = None,
+    disable_progress_bar: bool = False
 ) -> dict:
     """Train for one epoch."""
     model.train()
@@ -154,13 +157,18 @@ def train_one_epoch(
     correct = 0
     total = 0
     
-    # Only show progress bar on main process
+    # Only show progress bar on main process (unless disabled for speed)
     train_iter = train_loader
-    if dist_manager.is_main_process:
+    if dist_manager.is_main_process and not disable_progress_bar:
         train_iter = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train]", leave=False)
     
     for images, labels in train_iter:
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+
+        # Apply GPU transforms if enabled (normalization + augmentations)
+        if gpu_transforms is not None:
+            images = gpu_transforms(images)
+
         if use_channels_last:
             images = images.to(memory_format=torch.channels_last)
 
@@ -222,7 +230,9 @@ def validate(
     epoch: int,
     use_channels_last: bool,
     dist_manager: DistributedManager,
-    use_amp: bool = True
+    use_amp: bool = True,
+    gpu_transforms: nn.Module | None = None,
+    disable_progress_bar: bool = False
 ) -> dict:
     """Validate the model."""
     # Use unwrapped model to avoid DDP buffer sync issues when validating on single rank
@@ -233,14 +243,18 @@ def validate(
     correct = 0
     total = 0
     
-    # Only show progress bar on main process
+    # Only show progress bar on main process (unless disabled for speed)
     val_iter = val_loader
-    if dist_manager.is_main_process:
+    if dist_manager.is_main_process and not disable_progress_bar:
         val_iter = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val]", leave=False)
     
     for images, labels in val_iter:
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-        
+
+        # Apply GPU transforms if enabled (normalization only for validation)
+        if gpu_transforms is not None:
+            images = gpu_transforms(images)
+
         if use_channels_last:
             images = images.to(memory_format=torch.channels_last)
         
@@ -350,15 +364,17 @@ def main(args):
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
+    # Auto-detect host-specific settings
+    host = socket.gethostname().lower()
+
     if cfg.get("data", {}).get("dataset", "").lower() == "imagenet":
-        host = socket.gethostname().lower()
         imagenet_root = None
-        
+
         if "guppy" in host:
             imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
         elif "snellius" in host:
             imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
-        
+
         # Replace if we detected a known host AND root is placeholder or empty
         if imagenet_root is not None:
             current_root = cfg["data"].get("root", "")
@@ -367,6 +383,12 @@ def main(args):
                 print(f"[INFO] Auto-detected ImageNet root: {imagenet_root}")
             else:
                 print(f"[INFO] Using ImageNet root from config: {current_root}")
+
+    # Auto-enable GPU transforms on guppy (limited CPU cores)
+    if "guppy" in host:
+        if "gpu_transforms" not in cfg.get("data", {}):
+            cfg.setdefault("data", {})["gpu_transforms"] = True
+            print(f"[INFO] Auto-enabled GPU transforms (guppy has limited CPU cores)")
     
     # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
@@ -447,6 +469,17 @@ def main(args):
     # Build dataloaders with distributed samplers
     train_loader, val_loader, train_sampler, val_sampler = build_dataloader(cfg, dist_manager)
 
+    # Build GPU transforms if enabled
+    use_gpu_transforms = cfg.get("data", {}).get("gpu_transforms", False)
+    if use_gpu_transforms:
+        gpu_train_transforms = build_gpu_transforms(cfg, is_train=True).to(device)
+        gpu_val_transforms = build_gpu_transforms(cfg, is_train=False).to(device)
+        if dist_manager.is_main_process:
+            logger.info("Using GPU-accelerated transforms to reduce CPU bottleneck")
+    else:
+        gpu_train_transforms = None
+        gpu_val_transforms = None
+
     train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
     fraction_str = f" ({train_fraction*100:.0f}% of full dataset)" if train_fraction < 1.0 else ""
 
@@ -483,24 +516,38 @@ def main(args):
     if dist_manager.is_main_process:
         logger.info(f"Starting training for {epochs} epochs...")
     
+    # Speed optimization settings
+    val_frequency = cfg.get("training", {}).get("val_frequency", 1)
+    save_frequency = cfg.get("training", {}).get("save_frequency", 1)
+    disable_progress_bar = cfg.get("training", {}).get("disable_progress_bar", False)
+
     for epoch in range(start_epoch, epochs):
         start_time = time.time()
-        
+
         # Set epoch for distributed sampler (important for shuffling!)
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
-        
+
         train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device,
-            use_channels_last, epoch, dist_manager, scaler, use_amp
+            use_channels_last, epoch, dist_manager, scaler, use_amp,
+            gpu_transforms=gpu_train_transforms,
+            disable_progress_bar=disable_progress_bar
         )
 
-        # Validation on main process only
-        if dist_manager.is_main_process:
+        # Validation - only run every N epochs + last epoch
+        should_validate = (epoch + 1) % val_frequency == 0 or (epoch + 1) == epochs
+        if should_validate and dist_manager.is_main_process:
             val_metrics = validate(
                 model, val_loader, criterion, device,
-                epoch, use_channels_last, dist_manager, use_amp
+                epoch, use_channels_last, dist_manager, use_amp,
+                gpu_transforms=gpu_val_transforms,
+                disable_progress_bar=disable_progress_bar
             )
+        else:
+            # Skip validation - reuse previous metrics for logging
+            val_metrics = {"loss": history["val_loss"][-1] if history["val_loss"] else 0.0,
+                          "accuracy": history["val_acc"][-1] if history["val_acc"] else 0.0}
 
         # Update scheduler
         if scheduler is not None:
@@ -517,37 +564,42 @@ def main(args):
             history["val_loss"].append(val_metrics["loss"])
             history["val_acc"].append(val_metrics["accuracy"])
             history["lr"].append(current_lr)
-            # Save history to CSV
-            save_history_csv(history, os.path.join(run_dir, "history.csv"))
-            
+
+            # Save history to CSV only when we validate (reduces I/O)
+            if should_validate:
+                save_history_csv(history, os.path.join(run_dir, "history.csv"))
+
             # Logging
+            val_str = f"Val Loss: {val_metrics['loss']:.4f}, Val Acc: {val_metrics['accuracy']:.2f}%" if should_validate else "(validation skipped)"
             logger.info(
                 f"Epoch {epoch+1}/{epochs} | "
                 f"Train Loss: {train_metrics['loss']:.4f}, Train Acc: {train_metrics['accuracy']:.2f}% | "
-                f"Val Loss: {val_metrics['loss']:.4f}, Val Acc: {val_metrics['accuracy']:.2f}% | "
+                f"{val_str} | "
                 f"LR: {current_lr:.6f} | Time: {epoch_time:.1f}s"
             )
-            
-            # Save checkpoints
-            is_best = val_metrics["accuracy"] > best_acc
-            if is_best:
-                best_acc = val_metrics["accuracy"]
+
+            # Save checkpoints periodically + always save best
+            should_save = (epoch + 1) % save_frequency == 0 or (epoch + 1) == epochs
+
+            # Check for best accuracy only when we validate
+            if should_validate:
+                is_best = val_metrics["accuracy"] > best_acc
+                if is_best:
+                    best_acc = val_metrics["accuracy"]
+                    save_checkpoint(
+                        model, optimizer, scheduler, epoch, best_acc, cfg,
+                        os.path.join(run_dir, "best.pt"), scaler, history,
+                        is_distributed=dist_manager.is_distributed
+                    )
+                    logger.info(f"New best accuracy: {best_acc:.2f}%")
+
+            # Save last checkpoint periodically (not every epoch)
+            if should_save:
                 save_checkpoint(
                     model, optimizer, scheduler, epoch, best_acc, cfg,
-                    os.path.join(run_dir, "best.pt"), scaler, history,
+                    os.path.join(run_dir, "last.pt"), scaler, history,
                     is_distributed=dist_manager.is_distributed
                 )
-                logger.info(f"New best accuracy: {best_acc:.2f}%")
-            
-            # Always save last checkpoint
-            save_checkpoint(
-                model, optimizer, scheduler, epoch, best_acc, cfg,
-                os.path.join(run_dir, "last.pt"), scaler, history,
-                is_distributed=dist_manager.is_distributed
-            )
-        
-        # Synchronize at end of epoch
-        dist_manager.barrier()
     
     if dist_manager.is_main_process:
         logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
