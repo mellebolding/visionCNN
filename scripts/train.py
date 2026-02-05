@@ -373,7 +373,7 @@ def main(args):
         if "guppy" in host:
             imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
         elif "snellius" in host:
-            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
+            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder"
 
         # Replace if we detected a known host AND root is placeholder or empty
         if imagenet_root is not None:

@@ -21,11 +21,11 @@
 #SBATCH --job-name=visioncnn
 #SBATCH --partition=gpu_a100
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
-#SBATCH --gpus-per-node=2
+#SBATCH --ntasks-per-node=1
+#SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=18
-#SBATCH --mem=240G
-#SBATCH --time=08:00:00
+#SBATCH --mem=120G
+#SBATCH --time=01:00:00
 #SBATCH --output=logs/slurm/%j_%x.out
 #SBATCH --error=logs/slurm/%j_%x.err
 #SBATCH --account=mcsei4132

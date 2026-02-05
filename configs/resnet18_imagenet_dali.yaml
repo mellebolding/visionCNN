@@ -38,7 +38,7 @@ data:
 
   # DALI-specific settings
   dali:
-    num_threads: 6             # Reduced - data is in page cache, minimal I/O needed
+    num_threads: 16             # Reduced - data is in page cache, minimal I/O needed
     prefetch_queue_depth: 4    # Increased prefetch to compensate for fewer threads
     decoder_device: gpu        # "gpu" = nvJPEG + HW decoder (fast!)
                                # "cpu" = libjpeg-turbo (fallback only)

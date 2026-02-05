@@ -16,7 +16,7 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"  # Set by launcher script
   img_size: 224
-  num_workers: 8                # 5 × 3 GPUs = 15 workers total (CPU load reduced by GPU transforms)
+  num_workers: 8                
   pin_memory: true
   persistent_workers: true       # CRITICAL: Avoids worker respawn overhead between epochs
   prefetch_factor: 4             # Buffer more batches for smoother pipeline
