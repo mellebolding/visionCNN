@@ -53,9 +53,7 @@ def imagenet_train_pipeline(
     random_aspect_ratio: Tuple[float, float] = (0.75, 1.333),
     shard_id: int = 0,
     num_shards: int = 1,
-    stick_to_shard: bool = True,
     shuffle: bool = True,
-    shuffle_after_epoch: bool = True,
     decoder_device: str = "mixed",  # "mixed" = decode on CPU, "gpu" = decode on GPU
     dali_cpu: bool = False,  # Run entire pipeline on CPU (fallback)
     random_seed: int = 42,
@@ -69,36 +67,40 @@ def imagenet_train_pipeline(
         random_aspect_ratio: Range for random crop aspect ratio
         shard_id: GPU/process ID for distributed training
         num_shards: Total number of GPUs/processes
-        stick_to_shard: If True, each shard reads only its portion
         shuffle: Shuffle data
-        shuffle_after_epoch: Re-shuffle after each epoch
         decoder_device: "mixed" (CPU decode + GPU ops) or "gpu" (full GPU)
         dali_cpu: If True, run entire pipeline on CPU
         random_seed: Random seed for reproducibility
     """
     # Read files from directory structure
+    # For DDP: each GPU reads its own shard (stick_to_shard=True)
+    # random_shuffle=True shuffles the shard initially, giving variety across epochs
     images, labels = fn.readers.file(
         file_root=data_dir,
         shard_id=shard_id,
         num_shards=num_shards,
-        random_shuffle=shuffle,
-        shuffle_after_epoch=shuffle_after_epoch,
-        stick_to_shard=stick_to_shard,
+        random_shuffle=shuffle,  # Initial shuffle of this shard's files
+        stick_to_shard=True,     # Each GPU reads only its portion (proper DDP)
+        pad_last_batch=True,     # Ensure consistent batch sizes across shards
         name="Reader",
-        seed=random_seed,
+        seed=random_seed + shard_id,  # Different seed per GPU for variety
     )
 
     # Decode images
-    # "mixed" = decode on CPU, subsequent ops on GPU (good for most systems)
-    # "gpu" = decode on GPU (requires nvJPEG, good for fast NVMe storage)
+    # DALI decoder options:
+    # - "cpu": libjpeg-turbo on CPU (slower)
+    # - "mixed": nvJPEG on GPU (fast!) - despite the name, this IS GPU-accelerated
+    #   On Ampere+ GPUs, this also uses the dedicated HW JPEG decoder
     device = "cpu" if dali_cpu else "gpu"
 
-    if decoder_device == "mixed" and not dali_cpu:
-        images = fn.decoders.image(images, device="mixed", output_type=types.RGB)
-    else:
+    if dali_cpu or decoder_device == "cpu":
+        # Pure CPU decode - use only if GPU decode causes issues
         images = fn.decoders.image(images, device="cpu", output_type=types.RGB)
         if not dali_cpu:
             images = images.gpu()
+    else:
+        # GPU-accelerated decode with nvJPEG (this is what you want!)
+        images = fn.decoders.image(images, device="mixed", output_type=types.RGB)
 
     # Random resized crop (GPU-accelerated)
     images = fn.random_resized_crop(
@@ -175,13 +177,14 @@ def imagenet_val_pipeline(
 
     device = "cpu" if dali_cpu else "gpu"
 
-    # Decode
-    if decoder_device == "mixed" and not dali_cpu:
-        images = fn.decoders.image(images, device="mixed", output_type=types.RGB)
-    else:
+    # Decode (same logic as training pipeline)
+    if dali_cpu or decoder_device == "cpu":
         images = fn.decoders.image(images, device="cpu", output_type=types.RGB)
         if not dali_cpu:
             images = images.gpu()
+    else:
+        # GPU-accelerated decode with nvJPEG
+        images = fn.decoders.image(images, device="mixed", output_type=types.RGB)
 
     # Resize (short edge) + Center crop
     images = fn.resize(

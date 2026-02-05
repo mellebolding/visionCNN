@@ -95,6 +95,19 @@ class CachedImageNet(Dataset):
         else:
             self._load_single(root, split, image_size, num_workers, resize_size, verbose)
 
+    def _read_shape_from_meta(self):
+        """Read image array shape from metadata file."""
+        with open(self.meta_path, 'r') as f:
+            content = f.read().strip()
+        # Handle both formats: "N,C,H,W" or "key=value" lines
+        if '=' in content:
+            for line in content.split('\n'):
+                if line.startswith('shape='):
+                    return eval(line.split('=', 1)[1])
+        else:
+            parts = content.split(',')
+            return tuple(int(p) for p in parts)
+
     def _load_single(
         self,
         root: str,
@@ -105,12 +118,17 @@ class CachedImageNet(Dataset):
         verbose: bool
     ):
         """Load data for single GPU training."""
-        # Check if cache exists
-        if os.path.exists(self.images_path) and os.path.exists(self.labels_path):
+        # Check if cache exists (need meta file for memmap shape)
+        if os.path.exists(self.images_path) and os.path.exists(self.labels_path) and os.path.exists(self.meta_path):
             if verbose:
                 print(f"[CachedImageNet] Loading {split} from cache: {self.images_path}")
-            self.images = torch.from_numpy(np.load(self.images_path, mmap_mode='r+'))
-            self.labels = torch.from_numpy(np.load(self.labels_path, mmap_mode='r+'))
+
+            # Read shape from metadata (memmap files don't have headers)
+            shape = self._read_shape_from_meta()
+
+            # Use memmap directly (cache was created with np.memmap, not np.save)
+            self.images = torch.from_numpy(np.memmap(self.images_path, dtype=np.uint8, mode='r', shape=shape))
+            self.labels = torch.from_numpy(np.load(self.labels_path))  # labels were saved with np.save
             if verbose:
                 print(f"[CachedImageNet] Loaded {len(self.images)} images from cache")
             return
@@ -164,8 +182,9 @@ class CachedImageNet(Dataset):
             print(f"[CachedImageNet] Rank {self.rank}: Attaching to shared cache")
 
         # Memory-map mode 'r' = read-only, shared across processes
-        self.images = torch.from_numpy(np.load(self.images_path, mmap_mode='r'))
-        self.labels = torch.from_numpy(np.load(self.labels_path, mmap_mode='r'))
+        shape = self._read_shape_from_meta()
+        self.images = torch.from_numpy(np.memmap(self.images_path, dtype=np.uint8, mode='r', shape=shape))
+        self.labels = torch.from_numpy(np.load(self.labels_path))  # labels were saved with np.save
 
         if self.rank == 0 and verbose:
             print(f"[CachedImageNet] All ranks attached. Shape: {self.images.shape}")
@@ -326,15 +345,19 @@ def build_cached_dataloader(
         )
         val_sampler = None
 
-    # num_workers=0 since data is already in RAM
+    # Use workers to prefetch batches (hides disk I/O latency when using memmap on disk)
+    num_workers = cfg.get('data', {}).get('loader_workers', 4)
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=(train_sampler is None),
         sampler=train_sampler,
-        num_workers=0,
+        num_workers=num_workers,
         pin_memory=True,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=num_workers > 0,
+        prefetch_factor=2 if num_workers > 0 else None,
     )
 
     val_loader = DataLoader(
@@ -342,9 +365,11 @@ def build_cached_dataloader(
         batch_size=batch_size,
         shuffle=False,
         sampler=val_sampler,
-        num_workers=0,
+        num_workers=num_workers,
         pin_memory=True,
-        drop_last=False
+        drop_last=False,
+        persistent_workers=num_workers > 0,
+        prefetch_factor=2 if num_workers > 0 else None,
     )
 
     return train_loader, val_loader, train_sampler, val_sampler

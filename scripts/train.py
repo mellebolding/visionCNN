@@ -476,9 +476,9 @@ def main(args):
     if use_dali and dist_manager.is_main_process:
         logger.info("Using DALI GPU-accelerated data loading")
 
-    # Build GPU transforms if enabled
+    # Build GPU transforms if enabled (but skip if using DALI - it handles transforms internally)
     use_gpu_transforms = cfg.get("data", {}).get("gpu_transforms", False)
-    if use_gpu_transforms:
+    if use_gpu_transforms and not use_dali:
         gpu_train_transforms = build_gpu_transforms(cfg, is_train=True).to(device)
         gpu_val_transforms = build_gpu_transforms(cfg, is_train=False).to(device)
         if dist_manager.is_main_process:
@@ -486,6 +486,8 @@ def main(args):
     else:
         gpu_train_transforms = None
         gpu_val_transforms = None
+        if use_gpu_transforms and use_dali and dist_manager.is_main_process:
+            logger.info("Skipping gpu_transforms (DALI handles augmentations internally)")
 
     train_fraction = cfg.get("data", {}).get("train_fraction", 1.0)
     fraction_str = f" ({train_fraction*100:.0f}% of full dataset)" if train_fraction < 1.0 else ""

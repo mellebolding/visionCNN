@@ -20,6 +20,7 @@ data:
   root: "<IMAGENET_ROOT>"  # Set by launcher script or auto-detected
   img_size: 224
   cache_workers: 16        # Workers for initial data loading into RAM
+  loader_workers: 8
 
   # Augmentations (applied on GPU via GPUAugmentations class)
   # Note: random_flip is always enabled in cached mode

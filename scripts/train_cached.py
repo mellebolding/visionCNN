@@ -52,6 +52,7 @@ class GPUAugmentations(nn.Module):
     Handles:
     - uint8 [0,255] -> float16/32 [0,1] conversion
     - Random horizontal flip (training only)
+    - Color jitter (optional, training only)
     - Normalization
     - Random erasing (optional, training only)
     """
@@ -62,12 +63,14 @@ class GPUAugmentations(nn.Module):
         std=(0.229, 0.224, 0.225),
         random_flip: bool = True,
         random_erasing_p: float = 0.0,
+        color_jitter: tuple = None,  # (brightness, contrast, saturation, hue)
     ):
         super().__init__()
         self.register_buffer('mean', torch.tensor(mean).view(1, 3, 1, 1))
         self.register_buffer('std', torch.tensor(std).view(1, 3, 1, 1))
         self.random_flip = random_flip
         self.random_erasing_p = random_erasing_p
+        self.color_jitter = color_jitter  # e.g., (0.4, 0.4, 0.4, 0.1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -86,6 +89,10 @@ class GPUAugmentations(nn.Module):
             flip_mask = torch.rand(x.size(0), device=x.device) > 0.5
             x[flip_mask] = x[flip_mask].flip(-1)  # Flip along width dimension
 
+        # Color jitter (training only, before normalization)
+        if self.training and self.color_jitter is not None:
+            x = self._color_jitter(x)
+
         # Normalize
         x = (x - self.mean) / self.std
 
@@ -94,6 +101,42 @@ class GPUAugmentations(nn.Module):
             x = self._random_erasing(x)
 
         return x
+
+    def _color_jitter(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply color jitter augmentation on GPU (batch-wise, same transform per image)."""
+        b, c, h, w = x.shape
+        brightness, contrast, saturation, hue = self.color_jitter
+
+        # Per-image random factors
+        if brightness > 0:
+            b_factor = 1.0 + (torch.rand(b, 1, 1, 1, device=x.device) * 2 - 1) * brightness
+            x = x * b_factor
+
+        if contrast > 0:
+            c_factor = 1.0 + (torch.rand(b, 1, 1, 1, device=x.device) * 2 - 1) * contrast
+            gray = x.mean(dim=1, keepdim=True)
+            x = c_factor * x + (1 - c_factor) * gray
+
+        if saturation > 0:
+            s_factor = 1.0 + (torch.rand(b, 1, 1, 1, device=x.device) * 2 - 1) * saturation
+            gray = x.mean(dim=1, keepdim=True)
+            x = s_factor * x + (1 - s_factor) * gray
+
+        if hue > 0:
+            # Simplified hue shift: rotate RGB channels slightly
+            h_factor = (torch.rand(b, device=x.device) * 2 - 1) * hue * 0.5
+            cos_h = torch.cos(h_factor * 3.14159).view(b, 1, 1, 1)
+            sin_h = torch.sin(h_factor * 3.14159).view(b, 1, 1, 1)
+            # Approximate hue rotation in RGB space
+            r, g, b_ch = x[:, 0:1], x[:, 1:2], x[:, 2:3]
+            gray = (r + g + b_ch) / 3
+            x = torch.cat([
+                gray + (r - gray) * cos_h + (g - b_ch) * sin_h * 0.5,
+                gray + (g - gray) * cos_h + (b_ch - r) * sin_h * 0.5,
+                gray + (b_ch - gray) * cos_h + (r - g) * sin_h * 0.5,
+            ], dim=1)
+
+        return x.clamp(0, 1)
 
     def _random_erasing(self, x: torch.Tensor) -> torch.Tensor:
         """Apply random erasing augmentation."""
@@ -501,15 +544,27 @@ def main(args):
     # Build GPU augmentations
     data_cfg = cfg.get("data", {})
     random_erasing_p = 0.25 if data_cfg.get("random_erasing", False) else 0.0
+    color_jitter_cfg = data_cfg.get("color_jitter", None)
+    if color_jitter_cfg:
+        # Can be a list [b,c,s,h] or a single float for b,c,s with h=0
+        if isinstance(color_jitter_cfg, (int, float)):
+            color_jitter = (color_jitter_cfg, color_jitter_cfg, color_jitter_cfg, 0.0)
+        else:
+            color_jitter = tuple(color_jitter_cfg)
+    else:
+        color_jitter = None
     gpu_augmentations = GPUAugmentations(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
         random_flip=True,
         random_erasing_p=random_erasing_p,
+        color_jitter=color_jitter,
     ).to(device)
 
     if dist_manager.is_main_process:
         logger.info("GPU augmentations: random_flip=True, normalize=ImageNet")
+        if color_jitter:
+            logger.info(f"  color_jitter={color_jitter}")
         if random_erasing_p > 0:
             logger.info(f"  random_erasing_p={random_erasing_p}")
 

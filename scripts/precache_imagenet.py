@@ -49,13 +49,24 @@ def check_cache_status(cache_dir: str, image_size: int = 224):
     for split in ['train', 'val']:
         paths = get_cache_paths(cache_dir, split, image_size)
 
-        if os.path.exists(paths['images']):
+        if os.path.exists(paths['images']) and os.path.exists(paths['meta']):
             size_gb = os.path.getsize(paths['images']) / 1e9
-            arr = np.load(paths['images'], mmap_mode='r')
+
+            # Read shape from metadata (memmap files don't have headers)
+            meta = {}
+            with open(paths['meta'], 'r') as f:
+                for line in f:
+                    key, val = line.strip().split('=', 1)
+                    meta[key] = val
+            shape = eval(meta['shape'])  # e.g., "(1281167, 3, 224, 224)"
+
+            # Use memmap to verify file is readable
+            arr = np.memmap(paths['images'], dtype=np.uint8, mode='r', shape=shape)
             print(f"\n{split}:")
             print(f"  ✓ Cache exists: {paths['images']}")
             print(f"  Shape: {arr.shape}")
             print(f"  Size: {size_gb:.1f} GB")
+            del arr  # Close memmap
         else:
             print(f"\n{split}:")
             print(f"  ✗ Cache not found")

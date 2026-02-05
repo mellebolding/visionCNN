@@ -38,22 +38,19 @@ data:
 
   # DALI-specific settings
   dali:
-    num_threads: 4            # DALI internal worker threads (per GPU)
-    prefetch_queue_depth: 2   # Number of batches to prefetch
-    decoder_device: mixed     # "mixed" = CPU decode + GPU ops (good for most systems)
-                              # "gpu" = full GPU decode (requires fast NVMe storage)
-    # cpu: false              # Set to true to run DALI on CPU (for debugging)
+    num_threads: 6             # Reduced - data is in page cache, minimal I/O needed
+    prefetch_queue_depth: 4    # Increased prefetch to compensate for fewer threads
+    decoder_device: gpu        # "gpu" = nvJPEG + HW decoder (fast!)
+                               # "cpu" = libjpeg-turbo (fallback only)
 
   # Note: DALI handles augmentations internally (RandomResizedCrop, HorizontalFlip, Normalize)
-  # These PyTorch augmentation flags are NOT used with DALI backend:
-  # - auto_augment, rand_augment, color_jitter, random_erasing
-  # - gpu_transforms (DALI already runs on GPU)
+  # gpu_transforms is NOT used with DALI backend (DALI already runs on GPU)
 
 # Training configuration
 training:
-  epochs: 90
-  batch_size: 256             # Per-GPU batch size (DALI is memory efficient)
-  lr: 0.1                     # Base learning rate (scaled for batch size)
+  epochs: 40
+  batch_size: 768              # Per-GPU batch size (A6000 48GB can handle this)
+  lr: 0.3                     # Scaled for larger batch (linear scaling rule)
   min_lr: 0.0
   weight_decay: 1e-4
   optimizer: sgd
