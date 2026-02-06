@@ -1,0 +1,50 @@
+# ResNet18 ImageNet — Snellius (A100), PyTorch DataLoader
+#
+# Optimized for Snellius A100 nodes (18 CPUs per GPU allocation).
+# Key change vs generic config: gpu_transforms=true and num_workers=16
+# to prevent the A100 from starving for data.
+#
+# Usage:
+#   sbatch --gpus-per-node=3 --cpus-per-task=54 scripts/launch_snellius.sh configs/resnet18_imagenet_snellius.yaml
+#   sbatch --gpus-per-node=1 --cpus-per-task=18 scripts/launch_snellius.sh configs/resnet18_imagenet_snellius.yaml
+
+experiment_name: resnet18_imagenet_snellius
+
+model:
+  name: resnet18
+  num_classes: 1000
+
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  num_workers: 16               # Snellius allocates 18 CPUs per GPU — use most of them
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  gpu_transforms: true          # Offload normalization to GPU (was false before — key fix)
+  color_jitter: false
+  random_erasing: false
+  rand_augment: false
+  auto_augment: false
+
+training:
+  epochs: 40
+  batch_size: 640
+  lr: 0.16
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true
+  sync_bn: false
+  channels_last: true
+  val_frequency: 5
+  save_frequency: 5
+  disable_progress_bar: false
+
+logging:
+  log_dir: logs

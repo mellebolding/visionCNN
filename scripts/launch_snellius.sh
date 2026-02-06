@@ -64,14 +64,21 @@ export PATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/bin:$PATH"
 export PYTHONPATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Set environment variables for distributed training
+# Note: MASTER_ADDR and MASTER_PORT are needed for torchrun.
+# WORLD_SIZE/RANK/LOCAL_RANK are NOT set here — torchrun manages these
+# for its child processes. Setting them from SLURM (ntasks=1) would
+# conflict with torchrun's multi-GPU spawning.
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_NODELIST | head -n 1)
 export MASTER_PORT=${MASTER_PORT:-29500}
-export WORLD_SIZE=$SLURM_NTASKS
-export RANK=$SLURM_PROCID
-export LOCAL_RANK=$SLURM_LOCALID
 
 # Performance optimizations
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# OMP_NUM_THREADS controls threads PER PROCESS. With PyTorch DataLoader,
+# each num_workers subprocess inherits this. Setting it too high (e.g. 16)
+# with 16 workers = 256 threads on 18 CPUs = severe thrashing.
+# For PyTorch backend: 1 is optimal (parallelism comes from worker count).
+# For DALI backend: DALI has its own thread pool, so 1 is also fine here.
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
 export NCCL_DEBUG=WARN
 export NCCL_IB_DISABLE=0
 export NCCL_NET_GDR_LEVEL=2

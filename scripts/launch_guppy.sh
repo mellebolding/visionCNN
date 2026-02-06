@@ -59,10 +59,10 @@ MASTER_PORT=${MASTER_PORT:-29500}
 # Environment Variables to Suppress Warnings
 # =============================================================================
 
-# Suppress OMP_NUM_THREADS warning
-export OMP_NUM_THREADS=4
-export MKL_NUM_THREADS=4
-export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
+# Keep OMP threads low — parallelism comes from DataLoader worker processes.
+# 1 is optimal for PyTorch DataLoader; DALI manages its own threads.
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
 
 
 # Force NCCL to use only IPv4 sockets (suppress c10d socket warnings)
@@ -74,9 +74,6 @@ export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 
 
 export MASTER_ADDR=127.0.0.1
-
-# Reduce NCCL verbosity (optional)
-export NCCL_DEBUG=WARN
 
 echo "=============================================="
 echo "Multi-GPU Training Launcher"

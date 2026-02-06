@@ -1,0 +1,49 @@
+# ResNet18 ImageNet — Guppy (3x A6000), PyTorch DataLoader
+#
+# Optimized for guppy's limited CPU cores by enabling gpu_transforms
+# to offload augmentation from CPU to GPU.
+#
+# Usage:
+#   ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy.yaml
+#   NGPUS=1 ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy.yaml
+
+experiment_name: resnet18_imagenet_guppy
+
+model:
+  name: resnet18
+  num_classes: 1000
+
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  num_workers: 6                # Guppy has limited CPU cores shared across 3 GPUs
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  gpu_transforms: true          # Offload normalization to GPU (critical for guppy)
+  color_jitter: false
+  random_erasing: false
+  rand_augment: false
+  auto_augment: false
+
+training:
+  epochs: 40
+  batch_size: 640
+  lr: 0.16
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true
+  sync_bn: false
+  channels_last: true
+  val_frequency: 5
+  save_frequency: 5
+  disable_progress_bar: false
+
+logging:
+  log_dir: logs

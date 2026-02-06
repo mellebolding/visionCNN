@@ -1,0 +1,48 @@
+# ResNet18 ImageNet — Guppy (3x A6000), DALI Backend
+#
+# DALI moves JPEG decoding + augmentation to GPU, bypassing CPU bottleneck.
+# Tuned for guppy's limited CPU cores: fewer reader threads.
+#
+# Requirements: nvidia-dali-cuda120
+#
+# Usage:
+#   ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali.yaml
+#   NGPUS=1 ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali.yaml
+
+experiment_name: resnet18_imagenet_guppy_dali
+
+model:
+  name: resnet18
+  num_classes: 1000
+
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: dali
+
+  dali:
+    num_threads: 8              # Lower thread count for guppy's limited CPUs
+    prefetch_queue_depth: 4
+    decoder_device: gpu         # nvJPEG + HW decoder
+
+training:
+  epochs: 40
+  batch_size: 640
+  lr: 0.16
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true
+  sync_bn: false
+  channels_last: true
+  val_frequency: 5
+  save_frequency: 5
+  disable_progress_bar: false
+
+logging:
+  log_dir: logs
