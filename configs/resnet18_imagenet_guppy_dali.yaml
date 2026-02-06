@@ -22,7 +22,7 @@ data:
   backend: dali
 
   dali:
-    num_threads: 8              # Lower thread count for guppy's limited CPUs
+    num_threads: 5 #1 gpu: 15              # Lower thread count for guppy's limited CPUs
     prefetch_queue_depth: 4
     decoder_device: gpu         # nvJPEG + HW decoder
 

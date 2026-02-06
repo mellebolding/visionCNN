@@ -1,0 +1,57 @@
+# ResNet18 ImageNet — Guppy (3x A6000), DALI + RAM Cache Backend
+#
+# Combines RAM-cached data (zero disk I/O) with DALI GPU augmentation.
+# Images are cached at 256x256 in RAM, then DALI applies RandomResizedCrop,
+# flip, and optional color jitter entirely on GPU.
+#
+# First run will create the cache (~262 GB). Subsequent runs reuse it.
+#
+# Requirements: nvidia-dali-cuda120, ~262 GB RAM (shared via memmap)
+#
+# Usage:
+#   ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali_cached.yaml
+#   NGPUS=1 ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali_cached.yaml
+
+experiment_name: resnet18_imagenet_guppy_dali_cached
+
+model:
+  name: resnet18
+  num_classes: 1000
+
+data:
+  dataset: imagenet
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  cache_size: 256               # Resolution to cache at (larger = more crop diversity)
+  backend: dali_cached
+
+  # Set to true to enable brightness/contrast/saturation augmentation on GPU
+  color_jitter: false
+  # brightness: 0.4
+  # contrast: 0.4
+  # saturation: 0.4
+
+  dali:
+    num_threads: 5              # Lower thread count for guppy's limited CPUs
+    prefetch_queue_depth: 4
+
+training:
+  epochs: 40
+  batch_size: 640
+  lr: 0.16
+  min_lr: 0.0
+  weight_decay: 1e-4
+  optimizer: sgd
+  momentum: 0.9
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  compile: true
+  sync_bn: false
+  channels_last: true
+  val_frequency: 5
+  save_frequency: 5
+  disable_progress_bar: false
+
+logging:
+  log_dir: logs
