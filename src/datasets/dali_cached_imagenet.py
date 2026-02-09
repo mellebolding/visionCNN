@@ -31,7 +31,12 @@ Requirements:
     - Sufficient RAM for the cache (~262 GB for cache_size=256)
 """
 
+import collections
+import gc
+import mmap
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple, Any
 
 import numpy as np
@@ -56,10 +61,11 @@ IMAGENET_STD = [0.229 * 255, 0.224 * 255, 0.225 * 255]
 
 
 class CachedExternalSource:
-    """Iterator that provides batches from RAM-cached memmap to DALI.
+    """Batch-mode external source for DALI reading from disk-cached memmap.
 
-    Reads pre-cached uint8 HWC images from a numpy memmap and yields
-    batches as lists of numpy arrays for DALI's external_source operator.
+    Yields entire batches as dense numpy arrays for DALI's external_source
+    with batch=True. Uses a small ThreadPoolExecutor (2 workers) with a
+    bounded sliding window to overlap memmap I/O with GPU compute.
 
     Args:
         images: numpy memmap of shape [N, H, W, C] uint8
@@ -71,6 +77,9 @@ class CachedExternalSource:
         seed: Random seed for reproducibility
         drop_last: Drop the last incomplete batch
     """
+
+    PREFETCH_WORKERS = 2
+    PREFETCH_DEPTH = 4  # batches in flight
 
     def __init__(
         self,
@@ -98,37 +107,75 @@ class CachedExternalSource:
         self.shard_end = (shard_id + 1) * per_shard if shard_id < num_shards - 1 else total
         self.indices = np.arange(self.shard_start, self.shard_end)
         self.n = len(self.indices)
-        self.current = 0
+
+        self._executor = None
+        self._futures = collections.deque()
+        self._batch_indices = []
+        self._submit_pos = 0
+
+    def _load_batch(self, idx):
+        """Load a single batch from memmap. GIL is released during page faults."""
+        sorted_idx = np.sort(idx)
+        images = np.ascontiguousarray(self.images[sorted_idx])
+        labels = self.labels[sorted_idx].astype(np.int32)
+        return images, labels
+
+    def _submit_next(self):
+        if self._submit_pos < len(self._batch_indices):
+            f = self._executor.submit(self._load_batch, self._batch_indices[self._submit_pos])
+            self._futures.append(f)
+            self._submit_pos += 1
+
+    def _shutdown(self):
+        """Fully stop old executor and free all prefetched data."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=True, cancel_futures=True)
+            self._futures.clear()
+            self._executor = None
 
     def __iter__(self):
         if self.shuffle:
             rng = np.random.RandomState(self.seed + self.epoch)
             rng.shuffle(self.indices)
-        self.current = 0
         self.epoch += 1
+
+        # Pre-compute all batch index arrays
+        self._batch_indices = []
+        pos = 0
+        while pos < self.n:
+            remaining = self.n - pos
+            if self.drop_last and remaining < self.batch_size:
+                break
+            end = min(pos + self.batch_size, self.n)
+            self._batch_indices.append(self.indices[pos:end].copy())
+            pos = end
+
+        # Fully stop old executor before starting new one
+        self._shutdown()
+
+        # Start new executor with bounded prefetch
+        self._executor = ThreadPoolExecutor(max_workers=self.PREFETCH_WORKERS)
+        self._futures = collections.deque()
+        self._submit_pos = 0
+        for _ in range(min(self.PREFETCH_DEPTH, len(self._batch_indices))):
+            self._submit_next()
+
         return self
 
     def __next__(self):
-        remaining = self.n - self.current
-        if remaining <= 0:
+        if not self._futures:
+            self._shutdown()
             raise StopIteration
-        if self.drop_last and remaining < self.batch_size:
-            raise StopIteration
-
-        end = min(self.current + self.batch_size, self.n)
-        idx = self.indices[self.current:end]
-        self.current = end
-
-        # Return lists of individual numpy arrays (DALI batch format)
-        # Each image: [H, W, C] uint8, each label: scalar int32
-        images = [np.ascontiguousarray(self.images[i]) for i in idx]
-        labels = [np.array(self.labels[i], dtype=np.int32) for i in idx]
-
-        return images, labels
+        result = self._futures.popleft().result()
+        self._submit_next()
+        return result
 
     def __len__(self):
         """Number of samples in this shard."""
         return self.n
+
+    def __del__(self):
+        self._shutdown()
 
 
 @pipeline_def
@@ -259,29 +306,35 @@ class DALICachedWrapper:
     """PyTorch-compatible wrapper for DALI cached pipelines.
 
     Makes DALI pipelines behave like PyTorch DataLoaders, returning
-    (images, labels) tuples. Supports reset() for epoch boundaries.
+    (images, labels) tuples. On reset(), explicitly resets the Python
+    source and DALI pipeline, then rebuilds the iterator.
     """
 
     def __init__(
         self,
         pipeline,
+        source: CachedExternalSource,
         num_samples: int,
-        output_map: list = ["images", "labels"],
+        output_map: list = None,
         last_batch_policy=None,
-        auto_reset: bool = True,
     ):
+        if output_map is None:
+            output_map = ["images", "labels"]
         if last_batch_policy is None:
             last_batch_policy = LastBatchPolicy.PARTIAL
 
         self.pipeline = pipeline
+        self._source = source
         self._num_samples = num_samples
+        self._output_map = output_map
+        self._last_batch_policy = last_batch_policy
 
         self._iterator = DALIGenericIterator(
             pipeline,
             output_map,
             size=num_samples,
             last_batch_policy=last_batch_policy,
-            auto_reset=auto_reset,
+            auto_reset=False,
         )
 
         self._len = num_samples // pipeline.max_batch_size
@@ -304,8 +357,21 @@ class DALICachedWrapper:
         return self._len
 
     def reset(self):
-        """Reset iterator for new epoch."""
-        self._iterator.reset()
+        """Reset for new epoch: reset source, pipeline, rebuild iterator."""
+        del self._iterator
+        gc.collect()  # ensure DALI C++ buffers are freed before reallocating
+        iter(self._source)
+        try:
+            self.pipeline.reset()
+        except Exception:
+            pass
+        self._iterator = DALIGenericIterator(
+            self.pipeline,
+            self._output_map,
+            size=self._num_samples,
+            last_batch_policy=self._last_batch_policy,
+            auto_reset=False,
+        )
 
     @property
     def dataset(self):
@@ -369,6 +435,11 @@ def _cache_imagenet_hwc(
     if is_distributed:
         if rank == 0 and not cache_exists:
             _create_hwc_cache(root, split, cache_size, images_path, labels_path, meta_path, verbose)
+        else:
+            # Wait for rank 0 to finish creating the cache (file-based sync
+            # to avoid NCCL barrier timeout on long cache builds)
+            while not os.path.exists(meta_path):
+                time.sleep(5)
         if dist.is_initialized():
             dist.barrier()
     else:
@@ -378,6 +449,9 @@ def _cache_imagenet_hwc(
     # All ranks: memory-map the cache
     shape = read_meta()
     images = np.memmap(images_path, dtype=np.uint8, mode='r', shape=shape)
+    # Tell OS not to read-ahead on this memmap — reduces page cache pressure
+    # when the file (252 GB) is larger than RAM (251 GB)
+    images._mmap.madvise(mmap.MADV_RANDOM)
     labels = np.load(labels_path)
 
     if rank == 0 and verbose:
@@ -545,7 +619,7 @@ def build_dali_cached_dataloader(
 
     val_source = CachedExternalSource(
         val_images, val_labels, batch_size,
-        shard_id=0, num_shards=1,  # Validation: all ranks see all data
+        shard_id=0, num_shards=1,
         shuffle=False,
         seed=seed,
         drop_last=False,
@@ -581,12 +655,14 @@ def build_dali_cached_dataloader(
     # Wrap pipelines as PyTorch-compatible loaders
     train_loader = DALICachedWrapper(
         train_pipe,
+        source=train_source,
         num_samples=len(train_source),
         last_batch_policy=LastBatchPolicy.DROP,
     )
 
     val_loader = DALICachedWrapper(
         val_pipe,
+        source=val_source,
         num_samples=len(val_source),
         last_batch_policy=LastBatchPolicy.PARTIAL,
     )
