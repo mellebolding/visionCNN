@@ -496,7 +496,7 @@ def main(args):
     train_loader, val_loader, train_sampler, val_sampler = build_dataloader_with_backend(cfg, dist_manager)
 
     # Check if using DALI (for special handling)
-    use_dali = backend == "dali" and hasattr(train_loader, 'reset')
+    use_dali = backend in ("dali", "dali_cached") and hasattr(train_loader, 'reset')
     if use_dali and dist_manager.is_main_process:
         logger.info("Using DALI GPU-accelerated data loading")
 

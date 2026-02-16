@@ -388,11 +388,33 @@ def build_dataloader_with_backend(
             )
             return build_dataloader(cfg, dist_manager)
 
+    elif backend == "dali_cached":
+        try:
+            from src.datasets.dali_cached_imagenet import build_dali_cached_dataloader, is_dali_available
+
+            if not is_dali_available():
+                warnings.warn(
+                    "dali_cached backend requested but DALI not installed. "
+                    "Falling back to PyTorch backend. "
+                    "Install with: conda install -c nvidia nvidia-dali-cuda120"
+                )
+                return build_dataloader(cfg, dist_manager)
+
+            train_loader, val_loader = build_dali_cached_dataloader(cfg, dist_manager)
+            # DALI handles sharding internally, no external samplers needed
+            return train_loader, val_loader, None, None
+
+        except ImportError as e:
+            warnings.warn(
+                f"Failed to import dali_cached backend: {e}. Falling back to PyTorch backend."
+            )
+            return build_dataloader(cfg, dist_manager)
+
     else:
         # Default: PyTorch backend
         if backend != "pytorch":
             warnings.warn(
                 f"Unknown backend '{backend}', using 'pytorch' instead. "
-                f"Valid backends: pytorch, dali, cached"
+                f"Valid backends: pytorch, dali, dali_cached, cached"
             )
         return build_dataloader(cfg, dist_manager)

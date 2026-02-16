@@ -17,7 +17,7 @@ data:
   dataset: imagenet
   root: "<IMAGENET_ROOT>"
   img_size: 224
-  num_workers: 6                # Guppy has limited CPU cores shared across 3 GPUs
+  num_workers: 5 #1 gpu: 16                # Guppy has limited CPU cores shared across 3 GPUs
   pin_memory: true
   persistent_workers: true
   prefetch_factor: 4
