@@ -45,6 +45,12 @@ from src.datasets.cached_imagenet import build_cached_dataloader
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
 
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+
 
 class GPUAugmentations(nn.Module):
     """GPU-based augmentations for cached uint8 data.
@@ -495,6 +501,24 @@ def main(args):
         logger.info(f"Distributed: {dist_manager}")
         logger.info(f"Run directory: {run_dir}")
 
+    # Initialize wandb (rank 0 only)
+    wandb_cfg = cfg.get("wandb", {})
+    use_wandb = (
+        WANDB_AVAILABLE
+        and wandb_cfg.get("enabled", False)
+        and dist_manager.is_main_process
+    )
+    if use_wandb:
+        wandb.init(
+            project=wandb_cfg.get("project", "visionCNN"),
+            entity=wandb_cfg.get("entity", None),
+            name=experiment_name,
+            config=cfg,
+            tags=wandb_cfg.get("tags", []),
+            dir=run_dir,
+        )
+        logger.info("Weights & Biases logging enabled")
+
     # Set seed
     seed = cfg.get("training", {}).get("seed", 42)
     set_seed(seed + dist_manager.rank)
@@ -649,6 +673,19 @@ def main(args):
             history["val_acc"].append(val_metrics["accuracy"])
             history["lr"].append(current_lr)
 
+            # Log to wandb
+            if use_wandb:
+                wandb_metrics = {
+                    "epoch": epoch + 1,
+                    "train/loss": train_metrics["loss"],
+                    "train/acc": train_metrics["accuracy"],
+                    "lr": current_lr,
+                }
+                if should_validate:
+                    wandb_metrics["val/loss"] = val_metrics["loss"]
+                    wandb_metrics["val/acc"] = val_metrics["accuracy"]
+                wandb.log(wandb_metrics)
+
             if should_validate:
                 save_history_csv(history, os.path.join(run_dir, "history.csv"))
 
@@ -672,6 +709,14 @@ def main(args):
                         is_distributed=dist_manager.is_distributed
                     )
                     logger.info(f"New best accuracy: {best_acc:.2f}%")
+                    if use_wandb:
+                        artifact = wandb.Artifact(
+                            f"{experiment_name}-best",
+                            type="model",
+                            metadata={"epoch": epoch + 1, "val_acc": best_acc},
+                        )
+                        artifact.add_file(os.path.join(run_dir, "best.pt"))
+                        wandb.log_artifact(artifact)
 
             if should_save:
                 save_checkpoint(
@@ -683,6 +728,9 @@ def main(args):
     if dist_manager.is_main_process:
         logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
         logger.info(f"Outputs saved to: {run_dir}")
+
+    if use_wandb:
+        wandb.finish()
 
     dist_manager.cleanup()
 

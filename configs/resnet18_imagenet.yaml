@@ -64,3 +64,10 @@ training:
 # Logging configuration
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: false
+  project: visionCNN
+  entity: null        # uses default wandb entity
+  tags: []
