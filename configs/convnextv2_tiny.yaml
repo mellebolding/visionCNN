@@ -42,3 +42,9 @@ training:
 # All outputs (checkpoints, logs, history.csv) are saved to logs/{experiment_name}/
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: true
+  project: visionCNN
+  tags: []

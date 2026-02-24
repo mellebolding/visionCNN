@@ -47,6 +47,7 @@ from src.datasets.build import build_dataloader, build_dataloader_with_backend
 from src.datasets.gpu_transforms import build_gpu_transforms
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
+from src.utils.machine import resolve_machine_config
 
 try:
     import wandb
@@ -406,7 +407,6 @@ def main(args):
     dist_manager.setup(local_rank=args.local_rank)
     
     # Load config
-    import socket
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
@@ -433,36 +433,15 @@ def main(args):
             d = d.setdefault(k, {})
         d[keys[-1]] = value
 
-    # Auto-detect host-specific settings
-    host = socket.gethostname().lower()
+    # Resolve machine-specific settings (paths, worker counts, wandb tags)
+    project_root = Path(__file__).parent.parent
+    cfg, machine_name = resolve_machine_config(cfg, project_root)
 
-    if cfg.get("data", {}).get("dataset", "").lower() in ("imagenet", "imagenet100"):
-        imagenet_root = None
-
-        if "guppy" in host:
-            imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
-        elif "snellius" in host:
-            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder"
-
-        # Replace if we detected a known host AND root is placeholder or empty
-        if imagenet_root is not None:
-            current_root = cfg["data"].get("root", "")
-            if current_root in (None, "<IMAGENET_ROOT>", "", "None"):
-                cfg["data"]["root"] = imagenet_root
-                print(f"[INFO] Auto-detected ImageNet root: {imagenet_root}")
-            else:
-                print(f"[INFO] Using ImageNet root from config: {current_root}")
-
-    # Auto-enable GPU transforms on guppy (limited CPU cores)
-    if "guppy" in host:
-        if "gpu_transforms" not in cfg.get("data", {}):
-            cfg.setdefault("data", {})["gpu_transforms"] = True
-            print(f"[INFO] Auto-enabled GPU transforms (guppy has limited CPU cores)")
-    
     # Setup - everything goes in logs/{experiment_name}/
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
-    # Allow command line override for log_dir (useful for different clusters)
-    base_log_dir = args.log_dir if args.log_dir else cfg.get("logging", {}).get("log_dir", "logs")
+    # Allow command line override for log_dir, then machine config, then experiment config
+    machine_log_dir = cfg.get("_machine", {}).get("log_dir")
+    base_log_dir = args.log_dir if args.log_dir else (machine_log_dir or cfg.get("logging", {}).get("log_dir", "logs"))
     run_dir = os.path.join(base_log_dir, experiment_name)
     
     # Only main process creates directories
@@ -493,8 +472,10 @@ def main(args):
             name=experiment_name,
             config=cfg,
             tags=wandb_cfg.get("tags", []),
+            group=wandb_cfg.get("group", None),
             dir=run_dir,
         )
+        wandb.config.update({"machine": machine_name}, allow_val_change=True)
         logger.info("Weights & Biases logging enabled")
 
     # Set seed (with rank offset for diversity)

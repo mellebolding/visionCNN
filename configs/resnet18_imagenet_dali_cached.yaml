@@ -1,4 +1,4 @@
-# ResNet18 ImageNet — Guppy (3x A6000), DALI + Disk Cache Backend
+# ResNet18 ImageNet — DALI + Disk Cache Backend
 #
 # Combines disk-cached data (memmap) with DALI GPU augmentation.
 # Images are cached at 256x256 on NVMe, then DALI applies RandomResizedCrop,
@@ -10,10 +10,9 @@
 # Requirements: nvidia-dali-cuda120, ~262 GB disk for cache
 #
 # Usage:
-#   ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali_cached.yaml
-#   NGPUS=1 ./scripts/launch_guppy.sh configs/resnet18_imagenet_guppy_dali_cached.yaml
+#   ./scripts/launch_guppy.sh configs/resnet18_imagenet_dali_cached.yaml
 
-experiment_name: resnet18_imagenet_guppy_dali_cached
+experiment_name: resnet18_imagenet_dali_cached
 
 model:
   name: resnet18
@@ -33,7 +32,6 @@ data:
   # saturation: 0.4
 
   dali:
-    num_threads: 8
     prefetch_queue_depth: 4
 
 training:
@@ -56,3 +54,9 @@ training:
 
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: true
+  project: visionCNN
+  tags: []

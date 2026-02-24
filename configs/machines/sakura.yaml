@@ -1,0 +1,14 @@
+machine:
+  name: sakura
+  hostname_match: "sakura"
+
+paths:
+  imagenet_root: "~/datasets/imagenet"  # placeholder — download ImageNet-100 here
+  log_dir: "logs"
+
+data_defaults:
+  num_workers: 8
+  gpu_transforms: false
+
+wandb:
+  tags: ["sakura", "rtx3090"]

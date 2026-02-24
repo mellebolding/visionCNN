@@ -198,15 +198,36 @@ def main():
     parser.add_argument("--val-only", action="store_true", help="Only cache validation set")
     args = parser.parse_args()
 
-    # Auto-detect ImageNet root on guppy
+    # Auto-detect ImageNet root from machine config
     if args.root is None:
+        from pathlib import Path
+        import yaml
         import socket
-        host = socket.gethostname().lower()
-        if "guppy" in host:
-            args.root = "/export/scratch1/home/melle/datasets/imagenet"
+
+        machine_dir = Path(__file__).parent.parent / "configs" / "machines"
+        env_machine = os.environ.get("VCNN_MACHINE", "").lower().strip()
+        detected_root = None
+
+        if env_machine:
+            machine_file = machine_dir / f"{env_machine}.yaml"
+            if machine_file.exists():
+                with open(machine_file) as f:
+                    detected_root = yaml.safe_load(f).get("paths", {}).get("imagenet_root")
+        if detected_root is None:
+            host = socket.gethostname().lower()
+            for yaml_file in sorted(machine_dir.glob("*.yaml")):
+                with open(yaml_file) as f:
+                    candidate = yaml.safe_load(f)
+                match = candidate.get("machine", {}).get("hostname_match", "")
+                if match and match in host:
+                    detected_root = candidate.get("paths", {}).get("imagenet_root")
+                    break
+
+        if detected_root:
+            args.root = detected_root
             print(f"Auto-detected ImageNet root: {args.root}")
         else:
-            print("ERROR: Please specify --root")
+            print("ERROR: Please specify --root (no machine config matched)")
             sys.exit(1)
 
     # Default cache dir

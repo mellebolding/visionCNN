@@ -1,0 +1,27 @@
+[project]
+name = "visioncnn"
+version = "0.1.0"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "timm>=1.0",
+    "pyyaml",
+    "tqdm",
+    "wandb",
+    "matplotlib",
+    "pandas",
+    "scipy",
+    "h5py",
+]
+
+[project.optional-dependencies]
+dali = ["nvidia-dali-cuda120>=1.35"]
+dev = ["ipykernel", "ipython"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*"]

@@ -14,20 +14,18 @@ model:
 # Data configuration
 data:
   dataset: imagenet
-  root: "<IMAGENET_ROOT>"  # Set by launcher script
+  root: "<IMAGENET_ROOT>"  # Auto-resolved from machine config
   img_size: 224
-  num_workers: 8                
   pin_memory: true
   persistent_workers: true       # CRITICAL: Avoids worker respawn overhead between epochs
   prefetch_factor: 4             # Buffer more batches for smoother pipeline
-  # Standard ImageNet augmentation (CPU-constrained system)
-  color_jitter: false                
+  # Standard ImageNet augmentation
+  color_jitter: false
   color_jitter_brightness: 0.3
   color_jitter_contrast: 0.3
   color_jitter_saturation: 0.0
   color_jitter_hue: 0.0
-  random_erasing: false
-  gpu_transforms: false          # Enable GPU data augmentations (faster than CPU)               
+  random_erasing: false               
 
   # Advanced augmentation (optional - enable for +1-2% accuracy)
   rand_augment: false
@@ -67,7 +65,7 @@ logging:
 
 # Weights & Biases experiment tracking
 wandb:
-  enabled: false
+  enabled: true
   project: visionCNN
   entity: null        # uses default wandb entity
   tags: []

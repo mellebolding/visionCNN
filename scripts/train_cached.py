@@ -44,6 +44,7 @@ from src.models.factory import build_model
 from src.datasets.cached_imagenet import build_cached_dataloader
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
+from src.utils.machine import resolve_machine_config
 
 try:
     import wandb
@@ -462,31 +463,17 @@ def main(args):
     dist_manager.setup(local_rank=args.local_rank)
 
     # Load config
-    import socket
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
-    # Auto-detect host-specific settings
-    host = socket.gethostname().lower()
-
-    if cfg.get("data", {}).get("dataset", "").lower() == "imagenet":
-        imagenet_root = None
-
-        if "guppy" in host:
-            imagenet_root = "/export/scratch1/home/melle/datasets/imagenet"
-        elif "snellius" in host:
-            imagenet_root = "/scratch-nvme/ml-datasets/imagenet/ILSVRC/Data/CLS-LOC"
-
-        if imagenet_root is not None:
-            current_root = cfg["data"].get("root", "")
-            if current_root in (None, "<IMAGENET_ROOT>", "", "None"):
-                cfg["data"]["root"] = imagenet_root
-                if dist_manager.is_main_process:
-                    print(f"[INFO] Auto-detected ImageNet root: {imagenet_root}")
+    # Resolve machine-specific settings (paths, worker counts, wandb tags)
+    project_root = Path(__file__).parent.parent
+    cfg, machine_name = resolve_machine_config(cfg, project_root)
 
     # Setup
     experiment_name = cfg.get("experiment_name", Path(args.config).stem)
-    base_log_dir = args.log_dir if args.log_dir else cfg.get("logging", {}).get("log_dir", "logs")
+    machine_log_dir = cfg.get("_machine", {}).get("log_dir")
+    base_log_dir = args.log_dir if args.log_dir else (machine_log_dir or cfg.get("logging", {}).get("log_dir", "logs"))
     run_dir = os.path.join(base_log_dir, experiment_name)
 
     if dist_manager.is_main_process:
@@ -515,8 +502,10 @@ def main(args):
             name=experiment_name,
             config=cfg,
             tags=wandb_cfg.get("tags", []),
+            group=wandb_cfg.get("group", None),
             dir=run_dir,
         )
+        wandb.config.update({"machine": machine_name}, allow_val_change=True)
         logger.info("Weights & Biases logging enabled")
 
     # Set seed

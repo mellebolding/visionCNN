@@ -51,17 +51,18 @@ echo "CPUs per task: $SLURM_CPUS_PER_TASK"
 echo "Node list: $SLURM_NODELIST"
 echo "=============================================="
 
-# Load modules - use Snellius-optimized PyTorch stack
+# Load CUDA driver userspace libraries
 module purge
 module load 2023
-module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
+module load CUDA/12.1.1
 
-# Activate venv with additional packages (timm, wandb, etc.)
-source /projects/prjs0771/melle/envs/pytorch21-cuda121/bin/activate
+# Activate micromamba environment (same env as guppy/sakura)
+export MAMBA_ROOT_PREFIX="/projects/prjs0771/melle/micromamba"
+eval "$($MAMBA_ROOT_PREFIX/bin/micromamba shell hook -s bash)"
+micromamba activate visioncnn
 
-# Ensure all distributed processes use the venv
-export PATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/bin:$PATH"
-export PYTHONPATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages:$PYTHONPATH"
+# Machine identifier for config resolution
+export VCNN_MACHINE=snellius
 
 # Set environment variables for distributed training
 # Note: MASTER_ADDR and MASTER_PORT are needed for torchrun.
@@ -110,8 +111,8 @@ echo "=============================================="
 # Paths
 # =============================================================================
 
-# Output directory for checkpoints, logs, etc. (project space for Snellius)
-LOG_DIR="/projects/prjs0771/melle/projects/visionCNN/logs"
+# Output directory — machine config provides the default via paths.log_dir
+LOG_DIR="${LOG_DIR:-logs}"
 mkdir -p "$LOG_DIR"
 
 # =============================================================================

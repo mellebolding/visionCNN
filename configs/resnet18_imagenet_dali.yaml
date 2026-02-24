@@ -30,7 +30,7 @@ model:
 # Data configuration
 data:
   dataset: imagenet
-  root: "<IMAGENET_ROOT>"  # Auto-detected based on hostname (guppy/snellius)
+  root: "<IMAGENET_ROOT>"  # Auto-resolved from machine config
   img_size: 224
 
   # Backend selection: pytorch, dali, or cached
@@ -38,8 +38,7 @@ data:
 
   # DALI-specific settings
   dali:
-    num_threads: 16             # Reduced - data is in page cache, minimal I/O needed
-    prefetch_queue_depth: 4    # Increased prefetch to compensate for fewer threads
+    prefetch_queue_depth: 4    # Buffer depth for overlapping I/O and compute
     decoder_device: gpu        # "gpu" = nvJPEG + HW decoder (fast!)
                                # "cpu" = libjpeg-turbo (fallback only)
 
@@ -71,3 +70,9 @@ training:
 # Logging configuration
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: true
+  project: visionCNN
+  tags: []

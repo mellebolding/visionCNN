@@ -44,3 +44,9 @@ training:
 # Logging configuration
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: true
+  project: visionCNN
+  tags: []

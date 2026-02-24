@@ -1,26 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# Local Multi-GPU Training Launcher
+# Local Training Launcher (sakura - RTX 3090)
 # =============================================================================
-# Launch distributed training on a single node with multiple GPUs.
+# Launch training on the local machine.
 #
 # Usage:
-#   ./scripts/launch_guppy.sh configs/convnextv2_tiny.yaml
-#   ./scripts/launch_guppy.sh configs/convnextv2_tiny.yaml --resume logs/convnextv2_tiny_cifar10/last.pt
+#   ./scripts/launch_sakura.sh configs/simple_cnn.yaml
+#   ./scripts/launch_sakura.sh configs/resnet18_imagenet.yaml --set training.epochs=1
 #
 # Environment variables:
-#   NGPUS: Number of GPUs to use (default: all available)
+#   NGPUS: Number of GPUs to use (default: 1)
 #   MASTER_PORT: Port for distributed communication (default: 29500)
-#
-# Examples:
-#   # Use all available GPUs
-#   ./scripts/launch_local.sh configs/convnextv2_tiny.yaml
-#
-#   # Use specific number of GPUs
-#   NGPUS=2 ./scripts/launch_local.sh configs/convnextv2_tiny.yaml
-#
-#   # Use specific GPUs
-#   CUDA_VISIBLE_DEVICES=0,1,2 ./scripts/launch_local.sh configs/convnextv2_tiny.yaml
 # =============================================================================
 
 set -e
@@ -31,7 +21,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # Parse arguments
-CONFIG_FILE="${1:-configs/convnextv2_tiny.yaml}"
+CONFIG_FILE="${1:-configs/simple_cnn.yaml}"
 shift 2>/dev/null || true
 
 # Check config file exists
@@ -42,7 +32,7 @@ fi
 
 # Detect number of GPUs
 if [[ -z "$NGPUS" ]]; then
-    NGPUS=$(nvidia-smi -L | wc -l)
+    NGPUS=$(nvidia-smi -L 2>/dev/null | wc -l)
     if [[ $NGPUS -eq 0 ]]; then
         echo "Error: No GPUs detected"
         exit 1
@@ -56,36 +46,21 @@ LOG_DIR="${LOG_DIR:-logs}"
 MASTER_PORT=${MASTER_PORT:-29500}
 
 # =============================================================================
-# Environment Variables to Suppress Warnings
+# Environment Variables
 # =============================================================================
 
 # Machine identifier for config resolution
-export VCNN_MACHINE=guppy
+export VCNN_MACHINE=sakura
 
-# Keep OMP threads low — parallelism comes from DataLoader worker processes.
-# 1 is optimal for PyTorch DataLoader; DALI manages its own threads.
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-
-# Force NCCL to use only IPv4 sockets (suppress c10d socket warnings)
-export NCCL_SOCKET_FAMILY=IPv4
-export NCCL_IB_DISABLE=1
-export NCCL_DEBUG=WARN
-export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
-
-
-
-export MASTER_ADDR=127.0.0.1
-
 echo "=============================================="
-echo "Multi-GPU Training Launcher"
+echo "Local Training Launcher (sakura)"
 echo "=============================================="
 echo "Config: $CONFIG_FILE"
 echo "GPUs: $NGPUS"
-echo "Master port: $MASTER_PORT"
 echo "Log directory: $LOG_DIR"
-echo "OMP threads per process: $OMP_NUM_THREADS"
 echo "Additional args: $@"
 echo "=============================================="
 

@@ -19,13 +19,18 @@ echo "GPUs: $SLURM_GPUS_ON_NODE"
 echo "Partition: $SLURM_JOB_PARTITION"
 echo "================"
 
-# Load modules (Snellius)
+# Load CUDA driver userspace libraries
 module purge
 module load 2023
-module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
+module load CUDA/12.1.1
 
-# Activate venv with additional packages
-source /projects/prjs0771/melle/envs/pytorch21-cuda121/bin/activate
+# Activate micromamba environment
+export MAMBA_ROOT_PREFIX="/projects/prjs0771/melle/micromamba"
+eval "$($MAMBA_ROOT_PREFIX/bin/micromamba shell hook -s bash)"
+micromamba activate visioncnn
+
+# Machine identifier for config resolution
+export VCNN_MACHINE=snellius
 
 # Verify environment
 echo "Python: $(which python)"

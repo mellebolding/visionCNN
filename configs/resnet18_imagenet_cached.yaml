@@ -17,7 +17,7 @@ model:
 # Data configuration
 data:
   dataset: imagenet
-  root: "<IMAGENET_ROOT>"  # Set by launcher script or auto-detected
+  root: "<IMAGENET_ROOT>"  # Auto-resolved from machine config
   img_size: 224
   cache_workers: 16        # Workers for initial data loading into RAM
   loader_workers: 8
@@ -53,3 +53,9 @@ training:
 # Logging configuration
 logging:
   log_dir: logs
+
+# Weights & Biases experiment tracking
+wandb:
+  enabled: true
+  project: visionCNN
+  tags: []

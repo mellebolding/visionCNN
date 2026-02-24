@@ -1,0 +1,15 @@
+machine:
+  name: snellius
+  hostname_match: "snellius"
+
+paths:
+  imagenet_root: "/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder"
+  log_dir: "/projects/prjs0771/melle/projects/visionCNN/logs"
+
+data_defaults:
+  num_workers: 16
+  dali_num_threads: 8
+  gpu_transforms: true
+
+wandb:
+  tags: ["snellius", "a100"]

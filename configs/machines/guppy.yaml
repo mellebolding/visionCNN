@@ -1,0 +1,15 @@
+machine:
+  name: guppy
+  hostname_match: "guppy"
+
+paths:
+  imagenet_root: "/export/scratch1/home/melle/datasets/imagenet"
+  log_dir: "logs"
+
+data_defaults:
+  num_workers: 5
+  dali_num_threads: 5
+  gpu_transforms: true
+
+wandb:
+  tags: ["guppy", "a6000"]
