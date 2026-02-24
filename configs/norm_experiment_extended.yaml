@@ -1,0 +1,52 @@
+# Extended normalization experiment config.
+# Adds NoNorm, batch size sweep, LR sweep, gradient flow logging.
+#
+# Override via --set as needed. Example:
+#   python scripts/train.py --config configs/norm_experiment_extended.yaml \
+#     --set model.name=resnet_medium model.norm_layer=nonorm \
+#           training.batch_size=32 training.lr=0.001 \
+#           experiment_name=resnet_medium_nonorm_bs32_lr0.001
+
+experiment_name: norm_experiment_extended
+
+model:
+  name: resnet_medium
+  num_classes: 100
+  norm_layer: batchnorm
+
+data:
+  dataset: imagenet100
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+
+training:
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: true
+  seed: 42
+  val_frequency: 5
+  save_frequency: 10
+  disable_progress_bar: true
+  log_gradients: true
+  grad_log_freq: 50
+
+logging:
+  log_dir: logs
+
+wandb:
+  enabled: true
+  project: norm-comparison-extended
+  tags: [norm-experiment-extended, imagenet100]

@@ -69,7 +69,8 @@ export PYTHONPATH="/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.1
 # for its child processes. Setting them from SLURM (ntasks=1) would
 # conflict with torchrun's multi-GPU spawning.
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_NODELIST | head -n 1)
-export MASTER_PORT=${MASTER_PORT:-29500}
+# Randomize port per job to avoid conflicts on shared nodes
+export MASTER_PORT=${MASTER_PORT:-$((29500 + SLURM_JOB_ID % 10000))}
 
 # Performance optimizations
 # OMP_NUM_THREADS controls threads PER PROCESS. With PyTorch DataLoader,

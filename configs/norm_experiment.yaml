@@ -1,0 +1,48 @@
+# Base config for normalization comparison experiment.
+# Override model.name, model.norm_layer, and experiment_name via --set.
+#
+# Example:
+#   python scripts/train.py --config configs/norm_experiment.yaml \
+#     --set model.name=resnet_small model.norm_layer=groupnorm experiment_name=resnet_small_groupnorm
+
+experiment_name: norm_experiment
+
+model:
+  name: resnet_small
+  num_classes: 100
+  norm_layer: batchnorm
+
+data:
+  dataset: imagenet100
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+
+training:
+  epochs: 50
+  batch_size: 128
+  lr: 0.001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: true
+  seed: 42
+  val_frequency: 5
+  save_frequency: 10
+  disable_progress_bar: true
+
+logging:
+  log_dir: logs
+
+wandb:
+  enabled: true
+  project: norm-comparison
+  tags: [norm-experiment, imagenet100]

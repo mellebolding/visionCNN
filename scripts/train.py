@@ -42,6 +42,7 @@ from typing import cast
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.factory import build_model
+from src.models.norms import adaptive_gradient_clip
 from src.datasets.build import build_dataloader, build_dataloader_with_backend
 from src.datasets.gpu_transforms import build_gpu_transforms
 from src.utils.seed import set_seed
@@ -142,6 +143,30 @@ def build_scheduler(optimizer: torch.optim.Optimizer, cfg: dict):
         raise ValueError(f"Unknown scheduler: {scheduler_name}")
 
 
+def collect_gradient_norms(model):
+    """Collect L2 gradient norms for all parameter groups (conv, norm, linear)."""
+    grad_norms = {}
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            grad_norms[name] = param.grad.data.norm(2).item()
+    return grad_norms
+
+
+def save_gradient_stats(grad_log, filepath):
+    """Save gradient stats to CSV."""
+    if not grad_log:
+        return
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        # Get all layer names from first entry
+        layer_names = sorted(grad_log[0]["grads"].keys())
+        writer.writerow(["epoch", "step"] + layer_names)
+        for entry in grad_log:
+            row = [entry["epoch"], entry["step"]]
+            row.extend(entry["grads"].get(n, 0.0) for n in layer_names)
+            writer.writerow(row)
+
+
 def train_one_epoch(
     model: nn.Module,
     train_loader: torch.utils.data.DataLoader,
@@ -154,7 +179,10 @@ def train_one_epoch(
     scaler: GradScaler | None = None,
     use_amp: bool = True,
     gpu_transforms: nn.Module | None = None,
-    disable_progress_bar: bool = False
+    disable_progress_bar: bool = False,
+    grad_log: list | None = None,
+    grad_log_freq: int = 50,
+    use_agc: bool = False,
 ) -> dict:
     """Train for one epoch."""
     model.train()
@@ -191,19 +219,31 @@ def train_one_epoch(
                     outputs = model(images)
                     loss = criterion(outputs, labels)
             scaler.scale(loss).backward()
+            if use_agc:
+                scaler.unscale_(optimizer)
+                adaptive_gradient_clip(model)
             scaler.step(optimizer)
             scaler.update()
         else:
             outputs = model(images)
             loss = criterion(outputs, labels)
             loss.backward()
+            if use_agc:
+                adaptive_gradient_clip(model)
             optimizer.step()
         
+        # Log gradient norms periodically
+        if grad_log is not None and dist_manager.is_main_process:
+            step = total // images.size(0)
+            if step % grad_log_freq == 0:
+                grad_norms = collect_gradient_norms(model)
+                grad_log.append({"epoch": epoch + 1, "step": step, "grads": grad_norms})
+
         total_loss += loss.item() * images.size(0)
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
-        
+
         if dist_manager.is_main_process and hasattr(train_iter, 'set_postfix'):
             train_iter.set_postfix({
                 "loss": f"{loss.item():.4f}",
@@ -370,10 +410,33 @@ def main(args):
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
+    # Apply --set overrides (e.g. --set model.name=vgg_small model.norm_layer=groupnorm)
+    for override in getattr(args, 'set', []):
+        if '=' not in override:
+            raise ValueError(f"Invalid --set format: '{override}'. Expected KEY=VALUE")
+        key, value = override.split('=', 1)
+        keys = key.split('.')
+        # Auto-convert numeric values
+        try:
+            value = int(value)
+        except ValueError:
+            try:
+                value = float(value)
+            except ValueError:
+                if value.lower() == 'true':
+                    value = True
+                elif value.lower() == 'false':
+                    value = False
+        # Set nested key
+        d = cfg
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+
     # Auto-detect host-specific settings
     host = socket.gethostname().lower()
 
-    if cfg.get("data", {}).get("dataset", "").lower() == "imagenet":
+    if cfg.get("data", {}).get("dataset", "").lower() in ("imagenet", "imagenet100"):
         imagenet_root = None
 
         if "guppy" in host:
@@ -554,6 +617,19 @@ def main(args):
     save_frequency = cfg.get("training", {}).get("save_frequency", 1)
     disable_progress_bar = cfg.get("training", {}).get("disable_progress_bar", False)
 
+    # Gradient flow logging
+    log_gradients = cfg.get("training", {}).get("log_gradients", False)
+    grad_log_freq = cfg.get("training", {}).get("grad_log_freq", 50)
+    grad_log = [] if log_gradients and dist_manager.is_main_process else None
+    if log_gradients and dist_manager.is_main_process:
+        logger.info(f"Gradient flow logging enabled (every {grad_log_freq} steps)")
+
+    # Adaptive Gradient Clipping (auto-enabled for nonorm_ws)
+    norm_layer_name = cfg.get("model", {}).get("norm_layer", "batchnorm").lower()
+    use_agc = cfg.get("training", {}).get("use_agc", norm_layer_name == "nonorm_ws")
+    if use_agc and dist_manager.is_main_process:
+        logger.info("Adaptive Gradient Clipping (AGC) enabled")
+
     for epoch in range(start_epoch, epochs):
         start_time = time.time()
 
@@ -569,7 +645,10 @@ def main(args):
             model, train_loader, criterion, optimizer, device,
             use_channels_last, epoch, dist_manager, scaler, use_amp,
             gpu_transforms=gpu_train_transforms,
-            disable_progress_bar=disable_progress_bar
+            disable_progress_bar=disable_progress_bar,
+            grad_log=grad_log,
+            grad_log_freq=grad_log_freq,
+            use_agc=use_agc,
         )
 
         # Validation - only run every N epochs + last epoch
@@ -663,6 +742,12 @@ def main(args):
         logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")
         logger.info(f"Outputs saved to: {run_dir}")
 
+        # Save gradient flow log
+        if grad_log:
+            grad_path = os.path.join(run_dir, "gradient_stats.csv")
+            save_gradient_stats(grad_log, grad_path)
+            logger.info(f"Gradient stats saved to: {grad_path}")
+
     if use_wandb:
         wandb.finish()
 
@@ -676,6 +761,8 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--log_dir", type=str, default=None, help="Override log directory (default: from config or 'logs')")
     parser.add_argument("--local_rank", type=int, default=None, help="Local rank (set by torchrun)")
+    parser.add_argument("--set", nargs="+", default=[], metavar="KEY=VALUE",
+                        help="Override config values, e.g. --set model.name=vgg_small model.norm_layer=groupnorm")
     args = parser.parse_args()
     
     main(args)

@@ -26,10 +26,10 @@ def get_transforms(cfg, is_train=True):
     # Check if using GPU transforms (auto-detected based on hostname)
     use_gpu_transforms = data_cfg.get("gpu_transforms", False)
 
-    # Use ImageNet normalization for ImageNet, otherwise use simple normalization
+    # Use ImageNet normalization for ImageNet/ImageNet-100, otherwise use simple normalization
     # Skip normalization if using GPU transforms (will be done on GPU)
     if not use_gpu_transforms:
-        if dataset_name == "imagenet":
+        if dataset_name in ("imagenet", "imagenet100"):
             normalize = transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
@@ -40,7 +40,7 @@ def get_transforms(cfg, is_train=True):
         normalize = None
     
     # ImageNet-style transforms (larger images, need resize)
-    if dataset_name == "imagenet" or img_size >= 224:
+    if dataset_name in ("imagenet", "imagenet100") or img_size >= 224:
         if is_train:
             transform_list = [
                 transforms.RandomResizedCrop(img_size, scale=(0.08, 1.0)),
@@ -193,6 +193,21 @@ def build_dataset(cfg, is_train=True):
             root=data_path,
             transform=transform
         )
+    elif dataset_name == "imagenet100":
+        from src.datasets.imagenet100 import ImageNet100
+
+        split = "train" if is_train else "val"
+        data_path = os.path.join(data_root, split)
+        train_path = os.path.join(data_root, "train")
+
+        if not os.path.exists(data_path):
+            raise ValueError(f"ImageNet split directory not found: {data_path}")
+
+        dataset = ImageNet100(
+            root=data_path,
+            transform=transform,
+            imagenet_train_root=train_path,
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
@@ -320,6 +335,7 @@ def get_num_classes(dataset_name):
         "cifar100": 100,
         "svhn": 10,
         "imagenet": 1000,
+        "imagenet100": 100,
     }
     return num_classes_map.get(dataset_name.lower(), 10)
 
