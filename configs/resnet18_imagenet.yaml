@@ -18,7 +18,7 @@ data:
   img_size: 224
   pin_memory: true
   persistent_workers: true       # CRITICAL: Avoids worker respawn overhead between epochs
-  prefetch_factor: 4             # Buffer more batches for smoother pipeline
+  prefetch_factor: 2             # Buffer more batches for smoother pipeline
   # Standard ImageNet augmentation
   color_jitter: false
   color_jitter_brightness: 0.3
@@ -28,7 +28,7 @@ data:
   random_erasing: false               
 
   # Advanced augmentation (optional - enable for +1-2% accuracy)
-  rand_augment: false
+  rand_augment: true
   rand_augment_n: 2                  # If enabled: 2 ops per image
   rand_augment_m: 9                  # If enabled: moderate magnitude
   auto_augment: false                # Not recommended (slower than RandAugment)
@@ -36,8 +36,8 @@ data:
 # Training configuration
 training:
   epochs: 40
-  batch_size: 640               # Per-GPU batch size - maximize GPU utilization and reduce sync overhead
-  lr: 0.16                      # Scaled from 0.1 for batch_size=256 using linear scaling (640/400 ≈ 1.6x)
+  batch_size: 768               # Per-GPU batch size - maximize GPU utilization and reduce sync overhead
+  lr: 0.192                     # Scaled from 0.1 for batch_size=256 using linear scaling (768/400 ≈ 1.92x)
   min_lr: 0.0
   weight_decay: 1e-4
   optimizer: sgd

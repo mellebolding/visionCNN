@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /ufs/melle/visionCNN/src/models/*.py /ufs/melle/visionCNN/src/datasets/*.py /ufs/melle/visionCNN/scripts/*.py)",
+      "Bash(nvidia-smi -L)",
+      "Bash(nvidia-smi --query-gpu=name --format=csv,noheader)",
+      "Bash(git mv configs/resnet18_imagenet_guppy_dali_cached.yaml configs/resnet18_imagenet_dali_cached.yaml)",
+      "Bash(chmod +x /ufs/melle/visionCNN/scripts/launch_sakura.sh)",
+      "Bash(VCNN_MACHINE=sakura python -c \":*)",
+      "Bash(VCNN_MACHINE=sakura python3 -c \":*)",
+      "Bash(for machine in guppy snellius)",
+      "Bash(do)",
+      "Bash(echo \"=== $machine ===\")",
+      "Bash(VCNN_MACHINE=$machine python3 -c \":*)",
+      "Bash(done)"
+    ]
+  }
+}

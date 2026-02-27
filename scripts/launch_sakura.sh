@@ -15,6 +15,12 @@
 
 set -e
 
+# Activate micromamba environment if not already active
+if [[ "${CONDA_DEFAULT_ENV}" != "visioncnn" ]]; then
+    eval "$(micromamba shell hook -s bash)"
+    micromamba activate visioncnn
+fi
+
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

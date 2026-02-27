@@ -3,11 +3,11 @@ machine:
   hostname_match: "sakura"
 
 paths:
-  imagenet_root: "~/datasets/imagenet"  # placeholder — download ImageNet-100 here
+  imagenet_root: "/export/scratch1/home/melle/datasets/imagenet"
   log_dir: "logs"
 
 data_defaults:
-  num_workers: 8
+  num_workers: 16
   gpu_transforms: false
 
 wandb:
