@@ -257,6 +257,104 @@ class CachedImageNet(Dataset):
         return img, lbl
 
 
+class FastCachedLoader:
+    """High-throughput loader for cached uint8 data, bypassing DataLoader overhead.
+
+    Uses double-buffered batch indexing + pre-pinned buffers + CUDA stream
+    prefetch to overlap data loading with GPU compute.
+    """
+
+    def __init__(
+        self,
+        images: torch.Tensor,
+        labels: torch.Tensor,
+        batch_size: int,
+        device: torch.device,
+        shuffle: bool = True,
+        drop_last: bool = True,
+        seed: int = 42,
+        rank: int = 0,
+        world_size: int = 1,
+    ):
+        self.images = images
+        self.labels = labels
+        self.batch_size = batch_size
+        self.device = device
+        self.shuffle = shuffle
+        self.drop_last = drop_last
+        self.seed = seed
+        self.rank = rank
+        self.world_size = world_size
+        self.epoch = 0
+
+        n = len(images)
+        self.num_samples = n // world_size if drop_last else (n + world_size - 1) // world_size
+        self.total_size = self.num_samples * world_size
+
+        # Double-buffered pinned memory: fill buf[next] while GPU reads buf[current]
+        C, H, W = images.shape[1], images.shape[2], images.shape[3]
+        self._pinned_images = [
+            torch.empty(batch_size, C, H, W, dtype=torch.uint8, pin_memory=True),
+            torch.empty(batch_size, C, H, W, dtype=torch.uint8, pin_memory=True),
+        ]
+        self._pinned_labels = [
+            torch.empty(batch_size, dtype=torch.int64, pin_memory=True),
+            torch.empty(batch_size, dtype=torch.int64, pin_memory=True),
+        ]
+        self._stream = torch.cuda.Stream(device=device)
+
+    def set_epoch(self, epoch: int):
+        self.epoch = epoch
+
+    def _get_indices(self):
+        g = torch.Generator()
+        g.manual_seed(self.seed + self.epoch)
+        if self.shuffle:
+            indices = torch.randperm(len(self.images), generator=g)
+        else:
+            indices = torch.arange(len(self.images))
+        if len(indices) < self.total_size:
+            indices = torch.cat([indices, indices[:self.total_size - len(indices)]])
+        indices = indices[:self.total_size]
+        return indices[self.rank::self.world_size]
+
+    def __len__(self):
+        return self.num_samples // self.batch_size
+
+    def _load_batch(self, batch_idx, buf_idx):
+        """Load batch into pinned buffer[buf_idx] and start async H2D."""
+        torch.index_select(self.images, 0, batch_idx, out=self._pinned_images[buf_idx])
+        torch.index_select(self.labels, 0, batch_idx, out=self._pinned_labels[buf_idx])
+        with torch.cuda.stream(self._stream):
+            img_gpu = self._pinned_images[buf_idx].to(self.device, non_blocking=True)
+            lbl_gpu = self._pinned_labels[buf_idx].to(self.device, non_blocking=True)
+        return img_gpu, lbl_gpu
+
+    def __iter__(self):
+        indices = self._get_indices()
+        bs = self.batch_size
+        n_batches = len(indices) // bs
+        if n_batches == 0:
+            return
+
+        # Prefetch first batch into buffer 0
+        next_img, next_lbl = self._load_batch(indices[:bs], 0)
+
+        for i in range(n_batches):
+            # Wait for the prefetched batch to finish H2D
+            self._stream.synchronize()
+            cur_img, cur_lbl = next_img, next_lbl
+
+            # Start prefetching next batch into the other buffer (while GPU processes current)
+            if i + 1 < n_batches:
+                buf = (i + 1) % 2
+                next_img, next_lbl = self._load_batch(
+                    indices[(i + 1) * bs:(i + 2) * bs], buf
+                )
+
+            yield cur_img, cur_lbl
+
+
 def cleanup_cache(cache_dir: str = "/dev/shm", prefix: str = "imagenet_cache"):
     """Clean up cached files from shared memory."""
     import glob
@@ -331,45 +429,38 @@ def build_cached_dataloader(
         if verbose:
             print(f"[CachedImageNet] All ranks ready")
 
-    # Create distributed samplers
-    train_sampler = None
-    val_sampler = None
+    # Determine device for this rank
+    local_rank = rank % torch.cuda.device_count() if torch.cuda.is_available() else 0
+    device = torch.device(f"cuda:{local_rank}")
 
-    if is_distributed:
-        train_sampler = DistributedSampler(
-            train_dataset,
-            num_replicas=world_size,
-            rank=rank,
-            shuffle=True,
-            seed=seed
-        )
-        val_sampler = None
+    # Use FastCachedLoader: batch indexing + pre-pinned buffer + CUDA stream prefetch
+    # This bypasses DataLoader overhead (per-item __getitem__, collation, pin_memory)
+    if verbose:
+        print(f"[CachedImageNet] Using FastCachedLoader (batch indexing + pinned prefetch)")
 
-    # Use workers to prefetch batches (hides disk I/O latency when using memmap on disk)
-    num_workers = cfg.get('data', {}).get('loader_workers', 4)
-
-    train_loader = DataLoader(
-        train_dataset,
+    train_loader = FastCachedLoader(
+        images=train_dataset.images,
+        labels=train_dataset.labels,
         batch_size=batch_size,
-        shuffle=(train_sampler is None),
-        sampler=train_sampler,
-        num_workers=num_workers,
-        pin_memory=True,
+        device=device,
+        shuffle=True,
         drop_last=True,
-        persistent_workers=num_workers > 0,
-        prefetch_factor=2 if num_workers > 0 else None,
+        seed=seed,
+        rank=rank,
+        world_size=world_size,
     )
 
-    val_loader = DataLoader(
-        val_dataset,
+    val_loader = FastCachedLoader(
+        images=val_dataset.images,
+        labels=val_dataset.labels,
         batch_size=batch_size,
+        device=device,
         shuffle=False,
-        sampler=val_sampler,
-        num_workers=num_workers,
-        pin_memory=True,
         drop_last=False,
-        persistent_workers=num_workers > 0,
-        prefetch_factor=2 if num_workers > 0 else None,
+        seed=seed,
+        rank=rank,
+        world_size=world_size,
     )
 
-    return train_loader, val_loader, train_sampler, val_sampler
+    # Return None for samplers — FastCachedLoader handles sharding internally
+    return train_loader, val_loader, None, None

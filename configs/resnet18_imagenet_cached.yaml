@@ -20,7 +20,7 @@ data:
   root: "<IMAGENET_ROOT>"  # Auto-resolved from machine config
   img_size: 224
   cache_workers: 16        # Workers for initial data loading into RAM
-  loader_workers: 8
+  loader_workers: 0   # data is in RAM (memmap/page cache) — zero workers = zero overhead
 
   # Augmentations (applied on GPU via GPUAugmentations class)
   # Note: random_flip is always enabled in cached mode

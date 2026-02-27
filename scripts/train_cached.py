@@ -466,6 +466,27 @@ def main(args):
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
+    # Apply --set overrides (e.g. --set training.epochs=1 wandb.enabled=false)
+    for override in getattr(args, 'set', []):
+        if '=' not in override:
+            raise ValueError(f"Invalid --set format: '{override}'. Expected KEY=VALUE")
+        key, value = override.split('=', 1)
+        keys = key.split('.')
+        try:
+            value = int(value)
+        except ValueError:
+            try:
+                value = float(value)
+            except ValueError:
+                if value.lower() == 'true':
+                    value = True
+                elif value.lower() == 'false':
+                    value = False
+        d = cfg
+        for k in keys[:-1]:
+            d = d.setdefault(k, {})
+        d[keys[-1]] = value
+
     # Resolve machine-specific settings (paths, worker counts, wandb tags)
     project_root = Path(__file__).parent.parent
     cfg, machine_name = resolve_machine_config(cfg, project_root)
@@ -588,9 +609,9 @@ def main(args):
     train_loader, val_loader, train_sampler, val_sampler = build_cached_dataloader(cfg, dist_manager)
 
     if dist_manager.is_main_process:
-        total_train = len(train_loader.dataset)  # type: ignore
-        total_val = len(val_loader.dataset)  # type: ignore
-        logger.info(f"Train samples: {total_train}, Val samples: {total_val}")
+        total_train = len(train_loader) * cfg["training"]["batch_size"]
+        total_val = len(val_loader) * cfg["training"]["batch_size"]
+        logger.info(f"Train samples: ~{total_train}, Val samples: ~{total_val}")
         if dist_manager.is_distributed:
             effective_batch = cfg["training"]["batch_size"] * dist_manager.world_size
             logger.info(f"Effective batch size: {effective_batch} ({cfg['training']['batch_size']} x {dist_manager.world_size} GPUs)")
@@ -626,8 +647,11 @@ def main(args):
     for epoch in range(start_epoch, epochs):
         start_time = time.time()
 
+        # FastCachedLoader handles epoch-based shuffling internally
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
+        elif hasattr(train_loader, 'set_epoch'):
+            train_loader.set_epoch(epoch)
 
         train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device,
@@ -730,6 +754,8 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--log_dir", type=str, default=None, help="Override log directory")
     parser.add_argument("--local_rank", type=int, default=None, help="Local rank (set by torchrun)")
+    parser.add_argument("--set", nargs="+", default=[], metavar="KEY=VALUE",
+                        help="Override config values, e.g. --set training.epochs=1 wandb.enabled=false")
     args = parser.parse_args()
 
     main(args)
