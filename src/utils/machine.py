@@ -80,7 +80,11 @@ def resolve_machine_config(cfg: dict, project_root: Path) -> tuple:
 
     # Data loading defaults (only fill in when not set in experiment config)
     data = cfg.setdefault("data", {})
-    if "num_workers" not in data and "num_workers" in data_defaults:
+    # VCNN_NUM_WORKERS (set by launch script based on CPUs-per-GPU) takes priority
+    env_workers = os.environ.get("VCNN_NUM_WORKERS")
+    if env_workers is not None:
+        data["num_workers"] = int(env_workers)
+    elif "num_workers" not in data and "num_workers" in data_defaults:
         data["num_workers"] = data_defaults["num_workers"]
     if "gpu_transforms" not in data and "gpu_transforms" in data_defaults:
         data["gpu_transforms"] = data_defaults["gpu_transforms"]
@@ -97,6 +101,16 @@ def resolve_machine_config(cfg: dict, project_root: Path) -> tuple:
     # W&B tags — append machine tags to experiment tags
     machine_wandb = machine_cfg.get("wandb", {})
     machine_tags = machine_wandb.get("tags", [])
+
+    # Detect GPU type from SLURM partition (e.g. gpu_a100 -> a100, gpu_h100 -> h100)
+    slurm_partition = os.environ.get("SLURM_JOB_PARTITION", "")
+    if "a100" in slurm_partition:
+        machine_tags = machine_tags + ["a100"]
+    elif "h100" in slurm_partition:
+        machine_tags = machine_tags + ["h100"]
+    elif "mig" in slurm_partition:
+        machine_tags = machine_tags + ["mig"]
+
     if machine_tags:
         wandb_cfg = cfg.setdefault("wandb", {})
         existing_tags = wandb_cfg.get("tags", [])

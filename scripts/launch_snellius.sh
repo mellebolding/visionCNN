@@ -23,7 +23,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=1
-#SBATCH --cpus-per-task=18
+#SBATCH --cpus-per-gpu=18
 #SBATCH --mem=120G
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/slurm/%j_%x.out
@@ -89,6 +89,9 @@ export NCCL_NET_GDR_LEVEL=2
 if [[ "$SLURM_JOB_PARTITION" == *"h100"* ]]; then
     export NCCL_P2P_LEVEL=NVL
 fi
+
+# Scale num_workers to available CPUs per GPU (leave 2 for main process overhead)
+export VCNN_NUM_WORKERS=$(( (SLURM_CPUS_PER_GPU - 2) ))
 
 # =============================================================================
 # Parse Arguments
