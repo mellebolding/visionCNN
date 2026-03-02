@@ -8,7 +8,7 @@ paths:
 
 data_defaults:
   num_workers: 16
-  gpu_transforms: false
+  gpu_transforms: true
 
 wandb:
   tags: ["sakura", "rtx3090"]
