@@ -81,6 +81,27 @@ class RMSNorm(nn.Module):
         return x
 
 
+class Derf2d(nn.Module):
+    """Dynamic erf normalization for 2D feature maps (Chen et al., 2025).
+
+    Pointwise function: output = erf(alpha * x + shift) * weight + bias
+    where alpha and shift are learnable scalars, weight and bias are per-channel.
+    Designed as a drop-in replacement for normalization layers.
+    """
+
+    def __init__(self, num_channels, alpha_init=0.5, shift_init=0.0):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.tensor(alpha_init))
+        self.shift = nn.Parameter(torch.tensor(shift_init))
+        self.weight = nn.Parameter(torch.ones(num_channels))
+        self.bias = nn.Parameter(torch.zeros(num_channels))
+
+    def forward(self, x):
+        # x: (N, C, H, W)
+        out = torch.erf(self.alpha * x + self.shift)
+        return out * self.weight[None, :, None, None] + self.bias[None, :, None, None]
+
+
 class WSConv2d(nn.Conv2d):
     """Weight Standardized Conv2d (Qiao et al., 2019 / Brock et al., 2021).
 
@@ -136,9 +157,11 @@ def get_norm_layer(name: str):
         return RMSNorm2d
     elif name == "rmsnorm_bias":
         return partial(RMSNorm2d, bias=True)
+    elif name == "derf":
+        return Derf2d
     elif name in ("nonorm", "nonorm_ws"):
         return NoNorm
     else:
         raise ValueError(
-            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, nonorm, nonorm_ws"
+            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, nonorm, nonorm_ws"
         )

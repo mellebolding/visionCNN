@@ -1,0 +1,44 @@
+# ResNet50 + BatchNorm on ImageNet100 (no augmentation)
+experiment_name: resnet50_batchnorm_noaug
+
+model:
+  name: resnet50_custom
+  num_classes: 100
+  norm_layer: batchnorm
+
+data:
+  dataset: imagenet100
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  no_augment: true
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+
+training:
+  epochs: 50
+  batch_size: 64
+  lr: 0.001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: true
+  seed: 42
+  val_frequency: 2
+  save_frequency: 10
+  disable_progress_bar: true
+
+logging:
+  log_dir: logs
+
+wandb:
+  enabled: true
+  project: norm-comparison
+  group: resnet50-norm-experiment
+  tags: [resnet50, norm-experiment, imagenet100, no-augment, batchnorm]

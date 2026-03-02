@@ -31,6 +31,34 @@ class BasicBlock(nn.Module):
         return out
 
 
+class Bottleneck(nn.Module):
+    """Standard ResNet Bottleneck block (1x1 -> 3x3 -> 1x1) with configurable norm."""
+    expansion = 4
+
+    def __init__(self, in_planes, planes, stride=1, norm_layer=nn.BatchNorm2d,
+                 downsample=None, conv_cls=nn.Conv2d):
+        super().__init__()
+        self.conv1 = conv_cls(in_planes, planes, 1, bias=False)
+        self.bn1 = norm_layer(planes)
+        self.conv2 = conv_cls(planes, planes, 3, stride=stride, padding=1, bias=False)
+        self.bn2 = norm_layer(planes)
+        self.conv3 = conv_cls(planes, planes * self.expansion, 1, bias=False)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x):
+        identity = x
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        out += identity
+        out = self.relu(out)
+        return out
+
+
 class ResNet(nn.Module):
     """ResNet for ImageNet with configurable normalization."""
 
@@ -86,7 +114,10 @@ class ResNet(nn.Module):
         # Zero-init last conv in each residual block for stability without norm
         # (Fixup-style: makes residual branch start near zero)
         for m in self.modules():
-            if isinstance(m, BasicBlock):
+            if isinstance(m, Bottleneck):
+                if isinstance(m.bn3, NoNorm):
+                    nn.init.zeros_(m.conv3.weight)
+            elif isinstance(m, BasicBlock):
                 if isinstance(m.bn2, NoNorm):
                     nn.init.zeros_(m.conv2.weight)
 
@@ -113,4 +144,11 @@ def resnet_medium(num_classes=100, norm_layer="batchnorm", **kwargs):
     """ResNet-34 with configurable normalization."""
     use_ws = norm_layer.lower() == "nonorm_ws"
     return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes,
+                  norm_layer=get_norm_layer(norm_layer), use_ws=use_ws)
+
+
+def resnet50_custom(num_classes=100, norm_layer="batchnorm", **kwargs):
+    """ResNet-50 (Bottleneck) with configurable normalization."""
+    use_ws = norm_layer.lower() == "nonorm_ws"
+    return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes,
                   norm_layer=get_norm_layer(norm_layer), use_ws=use_ws)

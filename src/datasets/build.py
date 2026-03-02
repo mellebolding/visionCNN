@@ -39,8 +39,23 @@ def get_transforms(cfg, is_train=True):
     else:
         normalize = None
     
+    # No augmentation mode: use val-style transforms for training
+    no_augment = data_cfg.get("no_augment", False)
+
     # ImageNet-style transforms (larger images, need resize)
     if dataset_name in ("imagenet", "imagenet100") or img_size >= 224:
+        if is_train and no_augment:
+            # Zero augmentation: same as validation transforms
+            resize_size = int(img_size / 0.875)  # 256 for img_size=224
+            transform_list = [
+                transforms.Resize(resize_size),
+                transforms.CenterCrop(img_size),
+                transforms.ToTensor(),
+            ]
+            if normalize is not None:
+                transform_list.append(normalize)
+            return transforms.Compose(transform_list)
+
         if is_train:
             transform_list = [
                 transforms.RandomResizedCrop(img_size, scale=(0.08, 1.0)),

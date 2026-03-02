@@ -7,7 +7,7 @@ from .convnextv2 import (
 )
 from .simple_cnn import simple_cnn
 from .vgg import vgg_small, vgg_medium
-from .resnet import resnet_small, resnet_medium
+from .resnet import resnet_small, resnet_medium, resnet50_custom
 
 
 def resnet18(num_classes: int = 1000, pretrained: bool = False, **kwargs):
@@ -40,7 +40,7 @@ def resnet50(num_classes: int = 1000, pretrained: bool = False, **kwargs):
 # Models that accept norm_layer (string) as a kwarg
 _NORM_AWARE_MODELS = {
     "vgg_small", "vgg_medium",
-    "resnet_small", "resnet_medium",
+    "resnet_small", "resnet_medium", "resnet50_custom",
 }
 
 # Models that accept norm_type (string) as a kwarg (ConvNeXtV2-based)
@@ -66,6 +66,7 @@ MODEL_REGISTRY = {
     # Custom ResNets (configurable norm)
     "resnet_small": resnet_small,
     "resnet_medium": resnet_medium,
+    "resnet50_custom": resnet50_custom,
     # Custom VGGs (configurable norm)
     "vgg_small": vgg_small,
     "vgg_medium": vgg_medium,
