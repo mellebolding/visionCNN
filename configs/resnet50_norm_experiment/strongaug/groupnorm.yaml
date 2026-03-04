@@ -1,0 +1,60 @@
+# ResNet50 + GroupNorm on ImageNet100 (strong augmentation)
+experiment_name: resnet50_groupnorm_strongaug
+
+model:
+  name: resnet50_custom
+  num_classes: 100
+  norm_layer: groupnorm
+
+data:
+  dataset: imagenet100
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+  # Strong augmentation
+  rand_augment: true
+  rand_augment_n: 2
+  rand_augment_m: 9
+  color_jitter: true
+  color_jitter_brightness: 0.2
+  color_jitter_contrast: 0.2
+  color_jitter_saturation: 0.2
+  color_jitter_hue: 0.05
+  random_erasing: true
+  gaussian_blur: true
+  random_grayscale: true
+  random_grayscale_p: 0.1
+  random_rotation: true
+  random_rotation_degrees: 15
+  freq_augment: true
+  freq_augment_noise_scale: 0.05
+
+training:
+  epochs: 50
+  batch_size: 64
+  lr: 0.001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: true
+  seed: 42
+  val_frequency: 2
+  save_frequency: 10
+  disable_progress_bar: true
+
+logging:
+  log_dir: logs
+
+wandb:
+  enabled: true
+  project: norm-comparison
+  group: resnet50-norm-experiment-strongaug
+  tags: [resnet50, norm-experiment, imagenet100, strong-augment, groupnorm]

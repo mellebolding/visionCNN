@@ -11,10 +11,52 @@ import os
 import warnings
 from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, random_split, Subset, Dataset, DistributedSampler
 import torchvision
 import torchvision.transforms as transforms
+from PIL import Image
+
+
+class FourierAmplitudeNoise:
+    """Perturb the Fourier-domain amplitude of a PIL image.
+
+    Randomly scales the magnitude spectrum of each channel by
+    (1 + noise_scale * N(0,1)), leaving the phase intact.  This subtly
+    alters global texture/frequency content while preserving local
+    structure and colour balance.
+
+    Args:
+        noise_scale: std of the multiplicative Gaussian noise (default 0.05).
+        p: probability of applying the transform (default 1.0).
+    """
+
+    def __init__(self, noise_scale: float = 0.05, p: float = 1.0):
+        self.noise_scale = noise_scale
+        self.p = p
+
+    def __call__(self, img):
+        if self.p < 1.0 and torch.rand(1).item() > self.p:
+            return img
+        arr = np.array(img).astype(np.float32)          # H x W x C
+        # Process each channel independently
+        out = np.empty_like(arr)
+        for c in range(arr.shape[2]):
+            fft = np.fft.rfft2(arr[:, :, c])
+            amp = np.abs(fft)
+            phase = np.angle(fft)
+            noise = np.random.randn(*amp.shape).astype(np.float32)
+            amp_perturbed = amp * (1.0 + self.noise_scale * noise)
+            amp_perturbed = np.maximum(amp_perturbed, 0.0)
+            fft_new = amp_perturbed * np.exp(1j * phase)
+            channel = np.fft.irfft2(fft_new, s=arr[:, :, c].shape)
+            out[:, :, c] = channel
+        out = np.clip(out, 0, 255).astype(np.uint8)
+        return Image.fromarray(out)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(noise_scale={self.noise_scale}, p={self.p})"
 
 
 def get_transforms(cfg, is_train=True):
@@ -74,6 +116,16 @@ def get_transforms(cfg, is_train=True):
                 magnitude = data_cfg.get("rand_augment_m", 9)
                 transform_list.append(transforms.RandAugment(num_ops=n_ops, magnitude=magnitude))
             
+            # Optional: Small random rotation (±degrees)
+            if data_cfg.get("random_rotation", False):
+                degrees = data_cfg.get("random_rotation_degrees", 15)
+                transform_list.append(transforms.RandomRotation(degrees=degrees))
+
+            # Optional: Fourier amplitude noise (frequency-domain augmentation)
+            if data_cfg.get("freq_augment", False):
+                noise_scale = data_cfg.get("freq_augment_noise_scale", 0.05)
+                transform_list.append(FourierAmplitudeNoise(noise_scale=noise_scale))
+
             # Optional: Color jitter
             if data_cfg.get("color_jitter", False):
                 brightness = data_cfg.get("color_jitter_brightness", 0.4)
@@ -84,7 +136,18 @@ def get_transforms(cfg, is_train=True):
                     brightness=brightness, contrast=contrast,
                     saturation=saturation, hue=hue
                 ))
-            
+
+            # Optional: Gaussian blur
+            if data_cfg.get("gaussian_blur", False):
+                transform_list.append(transforms.GaussianBlur(
+                    kernel_size=23, sigma=(0.1, 2.0)
+                ))
+
+            # Optional: Random grayscale
+            if data_cfg.get("random_grayscale", False):
+                gs_p = data_cfg.get("random_grayscale_p", 0.2)
+                transform_list.append(transforms.RandomGrayscale(p=gs_p))
+
             transform_list.append(transforms.ToTensor())
 
             # Optional: Random erasing (skip if using GPU transforms)
