@@ -223,6 +223,36 @@ def build_dataset(cfg, is_train=True):
             transform=transform,
             imagenet_train_root=train_path,
         )
+    elif dataset_name == "imagenet_ecoset136":
+        from src.datasets.imagenet_ecoset import ImageNetEcoset
+
+        split = "train" if is_train else "val"
+        data_path = os.path.join(data_root, split)
+        train_path = os.path.join(data_root, "train")
+
+        if not os.path.exists(data_path):
+            raise ValueError(f"ImageNet split directory not found: {data_path}")
+
+        dataset = ImageNetEcoset(
+            root=data_path,
+            imagenet_train_root=train_path,
+            transform=transform,
+        )
+    elif dataset_name == "ecoset136":
+        from src.datasets.ecoset import Ecoset136
+
+        max_per_class = data_cfg.get("max_per_class", None)
+        split = "train" if is_train else "val"
+
+        if not os.path.exists(data_root):
+            raise ValueError(f"Ecoset directory not found: {data_root}")
+
+        dataset = Ecoset136(
+            root=data_root,
+            split=split,
+            max_per_class=max_per_class,
+            transform=transform,
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
     
@@ -449,3 +479,122 @@ def build_dataloader_with_backend(
                 f"Valid backends: pytorch, dali, dali_cached, cached"
             )
         return build_dataloader(cfg, dist_manager)
+
+
+def build_ood_dataloaders(
+    cfg: dict,
+    class_mapping: "ClassMapping",  # type: ignore
+) -> dict:
+    """Build OOD evaluation dataloaders based on config.
+
+    Args:
+        cfg: Configuration dictionary with ood_eval section.
+        class_mapping: ClassMapping for the model's training dataset.
+
+    Returns:
+        Dict of {name: DataLoader} for each available OOD dataset.
+    """
+    from src.datasets.ood_datasets import (
+        ImageNetR, ImageNetSketch, ImageNetA, CorruptedDataset,
+        StylizedImageNet,
+    )
+
+    ood_cfg = cfg.get("ood_eval", {})
+    if not ood_cfg.get("enabled", False):
+        return {}
+
+    datasets_root = ood_cfg.get("datasets_root", "/export/scratch1/home/melle/datasets")
+    batch_size = cfg.get("training", {}).get("batch_size", 64)
+    num_workers = min(cfg.get("data", {}).get("num_workers", 8), 8)
+
+    # Standard val transform (no augmentation)
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225],
+        ),
+    ])
+
+    loaders = {}
+    loader_kwargs = {
+        "batch_size": batch_size,
+        "shuffle": False,
+        "num_workers": num_workers,
+        "pin_memory": True,
+        "drop_last": False,
+    }
+
+    # ImageNet-R
+    imagenet_r_path = os.path.join(datasets_root, "imagenet-r")
+    if os.path.isdir(imagenet_r_path):
+        dataset = ImageNetR(imagenet_r_path, class_mapping, transform)
+        if len(dataset) > 0:
+            loaders["imagenet_r"] = DataLoader(dataset, **loader_kwargs)
+
+    # ImageNet-Sketch
+    imagenet_sketch_path = os.path.join(datasets_root, "imagenet-sketch")
+    if os.path.isdir(imagenet_sketch_path):
+        # ImageNet-Sketch may have nested directories (e.g., data/sketch/)
+        for nested in ["sketch", "data/sketch"]:
+            nested_path = os.path.join(imagenet_sketch_path, nested)
+            if os.path.isdir(nested_path):
+                imagenet_sketch_path = nested_path
+                break
+        dataset = ImageNetSketch(imagenet_sketch_path, class_mapping, transform)
+        if len(dataset) > 0:
+            loaders["imagenet_sketch"] = DataLoader(dataset, **loader_kwargs)
+
+    # ImageNet-A
+    imagenet_a_path = os.path.join(datasets_root, "imagenet-a")
+    if os.path.isdir(imagenet_a_path):
+        dataset = ImageNetA(imagenet_a_path, class_mapping, transform)
+        if len(dataset) > 0:
+            loaders["imagenet_a"] = DataLoader(dataset, **loader_kwargs)
+
+    # Stylized ImageNet
+    source = ood_cfg.get("source_dataset", "imagenet100")
+    sin_path = os.path.join(datasets_root, f"sin-{source}")
+    if os.path.isdir(sin_path):
+        dataset = StylizedImageNet(sin_path, class_mapping, transform)
+        if len(dataset) > 0:
+            loaders["sin"] = DataLoader(dataset, **loader_kwargs)
+
+    # ImageNet-C (lightweight: representative corruptions during training)
+    c_cfg = ood_cfg.get("imagenet_c", {})
+    if c_cfg.get("during_training", False):
+        # Build base val dataset (without transforms — CorruptedDataset handles its own)
+        imagenet_root = cfg.get("data", {}).get("root", "")
+        val_path = os.path.join(imagenet_root, "val")
+
+        if os.path.isdir(val_path):
+            # Use the same class filtering as the training dataset
+            dataset_name = cfg.get("data", {}).get("dataset", "imagenet").lower()
+            if dataset_name == "imagenet100":
+                from src.datasets.imagenet100 import ImageNet100
+                base_val = ImageNet100(
+                    val_path,
+                    transform=None,
+                    imagenet_train_root=os.path.join(imagenet_root, "train"),
+                )
+            else:
+                base_val = ImageFolder(val_path, transform=None)
+
+            corruptions = c_cfg.get(
+                "corruptions_during_training",
+                ["gaussian_noise", "defocus_blur", "fog", "contrast"],
+            )
+            severity = c_cfg.get("severity_during_training", 3)
+
+            for corruption in corruptions:
+                try:
+                    c_dataset = CorruptedDataset(base_val, corruption, severity)
+                    loaders[f"imagenet_c_{corruption}_s{severity}"] = DataLoader(
+                        c_dataset, **loader_kwargs
+                    )
+                except ImportError:
+                    pass  # imagecorruptions not installed
+
+    return loaders

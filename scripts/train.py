@@ -43,11 +43,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.factory import build_model
 from src.models.norms import adaptive_gradient_clip
-from src.datasets.build import build_dataloader, build_dataloader_with_backend
+from src.datasets.build import build_dataloader, build_dataloader_with_backend, build_ood_dataloaders
 from src.datasets.gpu_transforms import build_gpu_transforms
 from src.utils.seed import set_seed
 from src.utils.distributed import DistributedManager
 from src.utils.machine import resolve_machine_config
+from src.evaluation.class_mapping import ClassMapping
+from src.evaluation.ood_eval import evaluate_all_ood, save_predictions_to_file
 
 try:
     import wandb
@@ -567,7 +569,28 @@ def main(args):
         if dist_manager.is_distributed:
             effective_batch = cfg["training"]["batch_size"] * dist_manager.world_size
             logger.info(f"Effective batch size: {effective_batch} ({cfg['training']['batch_size']} x {dist_manager.world_size} GPUs)")
-    
+
+    # Build OOD evaluation dataloaders (rank 0 only)
+    ood_cfg = cfg.get("ood_eval", {})
+    ood_enabled = ood_cfg.get("enabled", False) and dist_manager.is_main_process
+    ood_loaders = {}
+    class_mapping = None
+    if ood_enabled:
+        try:
+            source_dataset = ood_cfg.get("source_dataset", "imagenet100")
+            imagenet_root = cfg.get("data", {}).get("root", "")
+            class_mapping = ClassMapping(source_dataset, imagenet_train_root=imagenet_root)
+            ood_loaders = build_ood_dataloaders(cfg, class_mapping)
+            logger.info(f"OOD evaluation enabled: {len(ood_loaders)} datasets loaded "
+                        f"({', '.join(ood_loaders.keys())})")
+            if ood_cfg.get("save_predictions", False):
+                pred_dir = os.path.join(run_dir, "predictions")
+                os.makedirs(pred_dir, exist_ok=True)
+                logger.info(f"Saving per-image predictions to {pred_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to build OOD dataloaders: {e}")
+            ood_enabled = False
+
     # Resume from checkpoint
     start_epoch = 0
     best_acc = 0.0
@@ -641,10 +664,41 @@ def main(args):
                 gpu_transforms=gpu_val_transforms,
                 disable_progress_bar=disable_progress_bar
             )
+
+            # OOD evaluation (rank 0 only, same frequency as validation)
+            ood_metrics = {}
+            if ood_enabled and ood_loaders:
+                logger.info(f"Running OOD evaluation (epoch {epoch+1})...")
+                ood_results = evaluate_all_ood(
+                    model, ood_loaders, device,
+                    use_amp=use_amp,
+                    use_channels_last=use_channels_last,
+                    gpu_transforms=gpu_val_transforms,
+                    save_predictions=ood_cfg.get("save_predictions", False),
+                )
+
+                # Separate predictions from metrics
+                predictions_store = ood_results.pop("_predictions", None)
+
+                ood_metrics = ood_results
+                # Log OOD summary
+                ood_accs = {k: v for k, v in ood_metrics.items() if k.endswith("/acc")}
+                if ood_accs:
+                    summary = ", ".join(f"{k.split('/')[1]}: {v:.1f}%" for k, v in sorted(ood_accs.items()))
+                    logger.info(f"OOD accuracies: {summary}")
+
+                # Save predictions for error consistency analysis
+                if predictions_store and ood_cfg.get("save_predictions", False):
+                    save_predictions_to_file(
+                        predictions_store,
+                        os.path.join(run_dir, "predictions"),
+                        epoch + 1,
+                    )
         else:
             # Skip validation - reuse previous metrics for logging
             val_metrics = {"loss": history["val_loss"][-1] if history["val_loss"] else 0.0,
                           "accuracy": history["val_acc"][-1] if history["val_acc"] else 0.0}
+            ood_metrics = {}
 
         # Update scheduler
         if scheduler is not None:
@@ -673,6 +727,8 @@ def main(args):
                 if should_validate:
                     wandb_metrics["val/loss"] = val_metrics["loss"]
                     wandb_metrics["val/acc"] = val_metrics["accuracy"]
+                if ood_metrics:
+                    wandb_metrics.update(ood_metrics)
                 wandb.log(wandb_metrics)
 
             # Save history to CSV only when we validate (reduces I/O)

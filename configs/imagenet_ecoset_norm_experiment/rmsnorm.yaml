@@ -1,13 +1,13 @@
-# ResNet50 + BatchNorm on ImageNet100 (no augmentation)
-experiment_name: resnet50_batchnorm_noaug
+# ResNet50 + rmsnorm on ImageNet-Ecoset136 (no augmentation)
+experiment_name: resnet50_rmsnorm_imagenet_ecoset
 
 model:
   name: resnet50_custom
-  num_classes: 100
-  norm_layer: batchnorm
+  num_classes: 136
+  norm_layer: rmsnorm
 
 data:
-  dataset: imagenet100
+  dataset: imagenet_ecoset136
   root: "<IMAGENET_ROOT>"
   img_size: 224
   backend: pytorch
@@ -39,7 +39,7 @@ logging:
 
 ood_eval:
   enabled: true
-  source_dataset: imagenet100
+  source_dataset: imagenet_ecoset136
   datasets_root: /export/scratch1/home/melle/datasets
   imagenet_c:
     during_training: true
@@ -50,5 +50,5 @@ ood_eval:
 wandb:
   enabled: true
   project: norm-comparison
-  group: resnet50-norm-experiment
-  tags: [resnet50, norm-experiment, imagenet100, no-augment, batchnorm]
+  group: resnet50-imagenet-ecoset-norm-experiment
+  tags: [resnet50, norm-experiment, imagenet_ecoset136, no-augment, rmsnorm]

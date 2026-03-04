@@ -1,14 +1,17 @@
-# ResNet50 + BatchNorm on ImageNet100 (no augmentation)
-experiment_name: resnet50_batchnorm_noaug
+# ResNet50 + BatchNorm on Ecoset136 (no augmentation, size-controlled)
+# 136 classes = same ImageNet-overlapping synsets as imagenet_ecoset_norm_experiment
+# max_per_class=1300 matches ImageNet's ~1300 training images/class (fair comparison)
+experiment_name: resnet50_batchnorm_ecoset
 
 model:
   name: resnet50_custom
-  num_classes: 100
+  num_classes: 136
   norm_layer: batchnorm
 
 data:
-  dataset: imagenet100
-  root: "<IMAGENET_ROOT>"
+  dataset: ecoset136
+  root: "<ECOSET_ROOT>"
+  max_per_class: 1300   # size-controlled: matches ImageNet ~1300/class
   img_size: 224
   backend: pytorch
   no_augment: true
@@ -39,7 +42,7 @@ logging:
 
 ood_eval:
   enabled: true
-  source_dataset: imagenet100
+  source_dataset: imagenet_ecoset136  # same 136-class mapping as imagenet_ecoset runs!
   datasets_root: /export/scratch1/home/melle/datasets
   imagenet_c:
     during_training: true
@@ -50,5 +53,5 @@ ood_eval:
 wandb:
   enabled: true
   project: norm-comparison
-  group: resnet50-norm-experiment
-  tags: [resnet50, norm-experiment, imagenet100, no-augment, batchnorm]
+  group: resnet50-ecoset-norm-experiment
+  tags: [resnet50, norm-experiment, ecoset136_sampled, no-augment, batchnorm]

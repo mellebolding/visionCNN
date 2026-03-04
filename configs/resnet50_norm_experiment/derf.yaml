@@ -37,6 +37,16 @@ training:
 logging:
   log_dir: logs
 
+ood_eval:
+  enabled: true
+  source_dataset: imagenet100
+  datasets_root: /export/scratch1/home/melle/datasets
+  imagenet_c:
+    during_training: true
+    corruptions_during_training: [gaussian_noise, defocus_blur, fog, contrast]
+    severity_during_training: 3
+  save_predictions: true
+
 wandb:
   enabled: true
   project: norm-comparison
