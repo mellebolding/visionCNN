@@ -1,0 +1,67 @@
+# ConvNeXt-Small + batchnorm on ImageNet-Ecoset136 — eco-valid augmentations
+# HFlip, ColorJitter (mild), GaussianBlur, Grayscale, Rotation ±15°
+experiment_name: convnext_small_batchnorm_imagenet_ecoset_ecovalid
+
+model:
+  name: convnext_small
+  num_classes: 136
+  norm_layer: batchnorm
+
+data:
+  dataset: imagenet_ecoset136
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+
+  # Eco-valid augmentations (RandomResizedCrop + HFlip always on)
+  random_rotation: true
+  random_rotation_degrees: 15
+  color_jitter: true
+  color_jitter_brightness: 0.2
+  color_jitter_contrast: 0.2
+  color_jitter_saturation: 0.2
+  color_jitter_hue: 0.05
+  gaussian_blur: true
+  random_grayscale: true
+  random_grayscale_p: 0.1
+
+training:
+  epochs: 50
+  batch_size: 64
+  lr: 0.001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: false
+  seed: 42
+  val_frequency: 2
+  save_frequency: 10
+  disable_progress_bar: true
+
+logging:
+  log_dir: logs
+
+ood_eval:
+  enabled: true
+  source_dataset: imagenet_ecoset136
+  datasets_root: /export/scratch1/home/melle/datasets
+  imagenet_c:
+    during_training: true
+    corruptions_during_training: [gaussian_noise, defocus_blur, fog, contrast]
+    severity_during_training: 3
+  save_predictions: true
+
+wandb:
+  enabled: true
+  project: norm-comparison
+  group: convnext-imagenet-ecoset-ecovalid-norm-experiment
+  tags: [convnext_small, norm-experiment, imagenet_ecoset136, ecovalid-aug, batchnorm]

@@ -209,9 +209,8 @@ def train_one_epoch(
         if use_channels_last:
             images = images.to(memory_format=torch.channels_last)
 
-        
         optimizer.zero_grad(set_to_none=True)
-        
+
         if use_amp and scaler is not None:
             if 'TORCH_AMP_NEW_API' in globals() and TORCH_AMP_NEW_API:
                 with autocast(device_type='cuda'):
@@ -234,7 +233,7 @@ def train_one_epoch(
             if use_agc:
                 adaptive_gradient_clip(model)
             optimizer.step()
-        
+
         # Log gradient norms periodically
         if grad_log is not None and dist_manager.is_main_process:
             step = total // images.size(0)

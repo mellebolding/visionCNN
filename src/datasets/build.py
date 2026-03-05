@@ -110,12 +110,20 @@ def get_transforms(cfg, is_train=True):
                     policy=transforms.AutoAugmentPolicy.IMAGENET
                 ))
             
-            # Optional: RandAugment
+            # Optional: RandAugment (alternative to AugMix — don't use both)
             if data_cfg.get("rand_augment", False):
                 n_ops = data_cfg.get("rand_augment_n", 2)
                 magnitude = data_cfg.get("rand_augment_m", 9)
                 transform_list.append(transforms.RandAugment(num_ops=n_ops, magnitude=magnitude))
-            
+
+            # Optional: AugMix (alternative to RandAugment — don't use both)
+            if data_cfg.get("aug_mix", False):
+                severity = data_cfg.get("aug_mix_severity", 3)
+                mixture_width = data_cfg.get("aug_mix_width", 3)
+                transform_list.append(transforms.AugMix(
+                    severity=severity, mixture_width=mixture_width
+                ))
+
             # Optional: Small random rotation (±degrees)
             if data_cfg.get("random_rotation", False):
                 degrees = data_cfg.get("random_rotation_degrees", 15)
@@ -642,8 +650,11 @@ def build_ood_dataloaders(
                     transform=None,
                     imagenet_train_root=os.path.join(imagenet_root, "train"),
                 )
+            elif dataset_name == "imagenet_ecoset136":
+                from src.datasets.imagenet_ecoset import ImageNetEcoset
+                base_val = ImageNetEcoset(val_path, transform=None)
             else:
-                base_val = ImageFolder(val_path, transform=None)
+                base_val = torchvision.datasets.ImageFolder(val_path, transform=None)
 
             corruptions = c_cfg.get(
                 "corruptions_during_training",

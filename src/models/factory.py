@@ -8,6 +8,7 @@ from .convnextv2 import (
 from .simple_cnn import simple_cnn
 from .vgg import vgg_small, vgg_medium
 from .resnet import resnet_small, resnet_medium, resnet50_custom
+from .vit import vit_small
 
 
 def resnet18(num_classes: int = 1000, pretrained: bool = False, **kwargs):
@@ -43,10 +44,11 @@ _NORM_AWARE_MODELS = {
     "resnet_small", "resnet_medium", "resnet50_custom",
 }
 
-# Models that accept norm_type (string) as a kwarg (ConvNeXtV2-based)
+# Models that accept norm_type (string) as a kwarg (ConvNeXtV2-based and ViT)
 _NORM_TYPE_MODELS = {
     "convnextv2_tiny", "convnextv2_base", "convnextv2_small",
     "convnext_small", "convnext_medium",
+    "vit_small",
 }
 
 MODEL_REGISTRY = {
@@ -70,6 +72,8 @@ MODEL_REGISTRY = {
     # Custom VGGs (configurable norm)
     "vgg_small": vgg_small,
     "vgg_medium": vgg_medium,
+    # Vision Transformer (configurable norm)
+    "vit_small": vit_small,
 }
 
 

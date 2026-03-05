@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from src.utils.layers import LayerNorm, GRN
-from src.models.norms import NoNorm, WSConv2d, RMSNorm2d, RMSNorm
+from src.models.norms import NoNorm, WSConv2d, RMSNorm2d, RMSNorm, Derf2d
 from timm.layers.drop import DropPath
 from timm.layers.weight_init import trunc_normal_
 
@@ -34,6 +34,8 @@ class Block(nn.Module):
         elif norm_type == "rmsnorm_bias":
             # RMSNorm + bias — ablation to isolate mean centering vs bias effect
             self.norm = RMSNorm(dim, bias=True)
+        elif norm_type == "derf":
+            self.norm = Derf2d(dim)
         elif norm_type in ("nonorm", "nonorm_ws"):
             self.norm = NoNorm(dim)
         else:
@@ -150,6 +152,8 @@ class ConvNeXtV2(nn.Module):
             return RMSNorm(dim, data_format="channels_first", bias=False)
         elif self.norm_type == "rmsnorm_bias":
             return RMSNorm(dim, data_format="channels_first", bias=True)
+        elif self.norm_type == "derf":
+            return Derf2d(dim)
         elif self.norm_type in ("nonorm", "nonorm_ws"):
             return NoNorm(dim)
         else:

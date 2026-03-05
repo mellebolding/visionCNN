@@ -136,6 +136,91 @@ def adaptive_gradient_clip(model, clip_factor=0.01, eps=1e-3):
             p.grad.data.mul_(max_norm / (g_norm + 1e-6))
 
 
+class _SeqBatchNorm(nn.Module):
+    """BatchNorm1d adapted for token sequences (N, L, D).
+
+    Permutes to (N, D, L) for BatchNorm1d, then permutes back.
+    Normalizes each feature dimension across the batch and sequence positions.
+    """
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.bn = nn.BatchNorm1d(dim)
+
+    def forward(self, x):
+        # x: (N, L, D)
+        x = x.permute(0, 2, 1)  # → (N, D, L)
+        x = self.bn(x)
+        return x.permute(0, 2, 1)  # → (N, L, D)
+
+
+class _SeqGroupNorm(nn.Module):
+    """GroupNorm adapted for token sequences (N, L, D).
+
+    Permutes to (N, D, L) for GroupNorm, then permutes back.
+    Normalizes within groups of feature dimensions per token.
+    """
+
+    def __init__(self, dim: int, num_groups: int = 32):
+        super().__init__()
+        self.gn = nn.GroupNorm(min(num_groups, dim), dim)
+
+    def forward(self, x):
+        # x: (N, L, D)
+        x = x.permute(0, 2, 1)  # → (N, D, L)
+        x = self.gn(x)
+        return x.permute(0, 2, 1)  # → (N, L, D)
+
+
+class _SeqDerf(nn.Module):
+    """Derf normalization for token sequences (N, L, D).
+
+    1D analog of Derf2d: erf(alpha * x + shift) * weight + bias,
+    applied elementwise over the D dimension. No statistics needed.
+    """
+
+    def __init__(self, dim: int, alpha_init: float = 0.5, shift_init: float = 0.0):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.tensor(alpha_init))
+        self.shift = nn.Parameter(torch.tensor(shift_init))
+        self.weight = nn.Parameter(torch.ones(dim))
+        self.bias = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x):
+        # x: (N, L, D) — operates elementwise, weight/bias broadcast over D
+        out = torch.erf(self.alpha * x + self.shift)
+        return out * self.weight + self.bias
+
+
+def get_norm_layer_seq(norm_type: str, dim: int) -> nn.Module:
+    """Return a norm layer instance for transformer token sequences (N, L, D).
+
+    All norms normalize over or operate on the D (embedding) dimension.
+
+    Args:
+        norm_type: One of 'layernorm', 'rmsnorm', 'batchnorm', 'groupnorm', 'derf'.
+        dim: Embedding dimension D.
+
+    Returns:
+        nn.Module that accepts (N, L, D) and returns (N, L, D).
+    """
+    if norm_type == "layernorm":
+        return nn.LayerNorm(dim)
+    elif norm_type == "rmsnorm":
+        return RMSNorm(dim=dim, data_format="channels_last")
+    elif norm_type == "batchnorm":
+        return _SeqBatchNorm(dim)
+    elif norm_type == "groupnorm":
+        return _SeqGroupNorm(dim)
+    elif norm_type == "derf":
+        return _SeqDerf(dim)
+    else:
+        raise ValueError(
+            f"Unknown norm_type for sequences: '{norm_type}'. "
+            "Choose from: layernorm, rmsnorm, batchnorm, groupnorm, derf"
+        )
+
+
 def get_norm_layer(name: str):
     """Return a norm layer constructor: norm_fn(num_channels) -> nn.Module.
 

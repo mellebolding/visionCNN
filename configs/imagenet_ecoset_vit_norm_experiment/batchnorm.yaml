@@ -1,0 +1,55 @@
+# ViT-Small + BatchNorm on ImageNet-Ecoset136 (no augmentation)
+experiment_name: vit_small_batchnorm_imagenet_ecoset
+
+model:
+  name: vit_small
+  num_classes: 136
+  norm_layer: batchnorm
+
+data:
+  dataset: imagenet_ecoset136
+  root: "<IMAGENET_ROOT>"
+  img_size: 224
+  backend: pytorch
+  no_augment: true
+  num_workers: 16
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  gpu_transforms: true
+
+training:
+  epochs: 50
+  batch_size: 64
+  lr: 0.0001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 10
+  label_smoothing: 0.1
+  use_amp: true
+  channels_last: false
+  seed: 42
+  val_frequency: 2
+  save_frequency: 10
+  disable_progress_bar: true
+
+logging:
+  log_dir: logs
+
+ood_eval:
+  enabled: true
+  source_dataset: imagenet_ecoset136
+  datasets_root: /export/scratch1/home/melle/datasets
+  imagenet_c:
+    during_training: true
+    corruptions_during_training: [gaussian_noise, defocus_blur, fog, contrast]
+    severity_during_training: 3
+  save_predictions: true
+
+wandb:
+  enabled: true
+  project: norm-comparison
+  group: vit-imagenet-ecoset-norm-experiment
+  tags: [vit_small, norm-experiment, imagenet_ecoset136, no-augment, batchnorm]
