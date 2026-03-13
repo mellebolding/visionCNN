@@ -81,12 +81,30 @@ class RMSNorm(nn.Module):
         return x
 
 
+def _derf_vp_weight_init(alpha: float) -> float:
+    """Variance-preserving weight initializer for Derf.
+
+    Computes the scaling factor so that erf(alpha*x)*weight has unit variance
+    at init when x ~ N(0,1). Uses the closed-form result:
+
+        Var[erf(alpha*X)] = (2/pi) * arcsin(2*alpha^2 / (1 + 2*alpha^2))
+
+    where X ~ N(0,1). Returns 1/std so that weight*erf(alpha*x) has std=1.
+    """
+    import math
+    var = (2.0 / math.pi) * math.asin(2.0 * alpha ** 2 / (1.0 + 2.0 * alpha ** 2))
+    return 1.0 / math.sqrt(var + 1e-8)
+
+
 class Derf2d(nn.Module):
     """Dynamic erf normalization for 2D feature maps (Chen et al., 2025).
 
     Pointwise function: output = erf(alpha * x + shift) * weight + bias
     where alpha and shift are learnable scalars, weight and bias are per-channel.
     Designed as a drop-in replacement for normalization layers.
+
+    NOTE: This original version uses weight_init=1.0, which does NOT preserve
+    activation variance through depth. Use Derf2dVP for variance-preserving init.
     """
 
     def __init__(self, num_channels, alpha_init=0.5, shift_init=0.0):
@@ -94,6 +112,33 @@ class Derf2d(nn.Module):
         self.alpha = nn.Parameter(torch.tensor(alpha_init))
         self.shift = nn.Parameter(torch.tensor(shift_init))
         self.weight = nn.Parameter(torch.ones(num_channels))
+        self.bias = nn.Parameter(torch.zeros(num_channels))
+
+    def forward(self, x):
+        # x: (N, C, H, W)
+        out = torch.erf(self.alpha * x + self.shift)
+        return out * self.weight[None, :, None, None] + self.bias[None, :, None, None]
+
+
+class Derf2dVP(nn.Module):
+    """Variance-Preserving Derf normalization for 2D feature maps.
+
+    Same as Derf2d but with weight initialized to 1/std(erf(alpha*x)) for
+    x ~ N(0,1). This ensures:
+      - Output variance ≈ input variance at initialization (no scale collapse)
+      - Gradient magnitude ≈ 1.0 per layer (no vanishing gradients)
+
+    With weight_init=1.0 (original Derf2d), erf(0.5*x) reduces std by ~0.46x
+    per layer, leading to 0.46^48 ≈ 10^-15 scale collapse in ResNet-50.
+    VP init compensates: weight_init ≈ 2.15 for alpha=0.5.
+    """
+
+    def __init__(self, num_channels, alpha_init=0.5, shift_init=0.0):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.tensor(float(alpha_init)))
+        self.shift = nn.Parameter(torch.tensor(float(shift_init)))
+        w_init = _derf_vp_weight_init(alpha_init)
+        self.weight = nn.Parameter(torch.full((num_channels,), w_init))
         self.bias = nn.Parameter(torch.zeros(num_channels))
 
     def forward(self, x):
@@ -177,6 +222,8 @@ class _SeqDerf(nn.Module):
 
     1D analog of Derf2d: erf(alpha * x + shift) * weight + bias,
     applied elementwise over the D dimension. No statistics needed.
+
+    NOTE: weight_init=1.0 does not preserve variance — use _SeqDerfVP instead.
     """
 
     def __init__(self, dim: int, alpha_init: float = 0.5, shift_init: float = 0.0):
@@ -184,6 +231,27 @@ class _SeqDerf(nn.Module):
         self.alpha = nn.Parameter(torch.tensor(alpha_init))
         self.shift = nn.Parameter(torch.tensor(shift_init))
         self.weight = nn.Parameter(torch.ones(dim))
+        self.bias = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x):
+        # x: (N, L, D) — operates elementwise, weight/bias broadcast over D
+        out = torch.erf(self.alpha * x + self.shift)
+        return out * self.weight + self.bias
+
+
+class _SeqDerfVP(nn.Module):
+    """Variance-Preserving Derf for token sequences (N, L, D).
+
+    Same as _SeqDerf but with weight initialized to 1/std(erf(alpha*x)) so
+    that activation variance is preserved at initialization.
+    """
+
+    def __init__(self, dim: int, alpha_init: float = 0.5, shift_init: float = 0.0):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.tensor(float(alpha_init)))
+        self.shift = nn.Parameter(torch.tensor(float(shift_init)))
+        w_init = _derf_vp_weight_init(alpha_init)
+        self.weight = nn.Parameter(torch.full((dim,), w_init))
         self.bias = nn.Parameter(torch.zeros(dim))
 
     def forward(self, x):
@@ -214,10 +282,12 @@ def get_norm_layer_seq(norm_type: str, dim: int) -> nn.Module:
         return _SeqGroupNorm(dim)
     elif norm_type == "derf":
         return _SeqDerf(dim)
+    elif norm_type == "derf_vp":
+        return _SeqDerfVP(dim)
     else:
         raise ValueError(
             f"Unknown norm_type for sequences: '{norm_type}'. "
-            "Choose from: layernorm, rmsnorm, batchnorm, groupnorm, derf"
+            "Choose from: layernorm, rmsnorm, batchnorm, groupnorm, derf, derf_vp"
         )
 
 
@@ -234,7 +304,7 @@ def get_norm_layer(name: str):
     if name == "batchnorm":
         return nn.BatchNorm2d
     elif name == "layernorm":
-        # GroupNorm with 1 group is equivalent to LayerNorm over (C, H, W)
+        # GroupNorm with 1 group normalizes over (C, H, W) — canonical LayerNorm for CNNs
         return partial(nn.GroupNorm, 1)
     elif name == "groupnorm":
         return partial(nn.GroupNorm, 32)
@@ -244,9 +314,11 @@ def get_norm_layer(name: str):
         return partial(RMSNorm2d, bias=True)
     elif name == "derf":
         return Derf2d
+    elif name == "derf_vp":
+        return Derf2dVP
     elif name in ("nonorm", "nonorm_ws"):
         return NoNorm
     else:
         raise ValueError(
-            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, nonorm, nonorm_ws"
+            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, nonorm, nonorm_ws"
         )

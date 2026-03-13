@@ -1,8 +1,9 @@
-# ResNet50 + derf_vp on ImageNet-Ecoset136 (no augmentation)
-experiment_name: resnet50_derf_vp_imagenet_ecoset
+# ConvNeXt-Small + Derf VP on ImageNet-Ecoset136 (no augmentation)
+# Variance-preserving Derf: weight initialized to 1/std(erf(alpha*x)) for x~N(0,1)
+experiment_name: convnext_small_derf_vp_imagenet_ecoset
 
 model:
-  name: resnet50_custom
+  name: convnext_small
   num_classes: 136
   norm_layer: derf_vp
 
@@ -26,9 +27,10 @@ training:
   weight_decay: 0.05
   optimizer: adamw
   scheduler: cosine
+  warmup_epochs: 5
   label_smoothing: 0.1
   use_amp: true
-  channels_last: true
+  channels_last: false
   seed: 42
   val_frequency: 2
   save_frequency: 10
@@ -50,5 +52,5 @@ ood_eval:
 wandb:
   enabled: true
   project: norm-comparison
-  group: resnet50-imagenet-ecoset-norm-experiment
-  tags: [resnet50, norm-experiment, imagenet_ecoset136, no-augment, derf_vp]
+  group: derf-vp-investigation
+  tags: [convnext_small, derf_vp, imagenet_ecoset136, no-augment]

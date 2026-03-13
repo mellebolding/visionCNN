@@ -1,4 +1,6 @@
-# ResNet50 + derf_vp on ImageNet-Ecoset136 (no augmentation)
+# ResNet-50 + Derf VP on ImageNet-Ecoset136 (no augmentation)
+# Variance-preserving Derf: weight initialized to 1/std(erf(alpha*x)) for x~N(0,1)
+# Fixes scale collapse that makes original Derf fail completely for ResNet.
 experiment_name: resnet50_derf_vp_imagenet_ecoset
 
 model:
@@ -50,5 +52,5 @@ ood_eval:
 wandb:
   enabled: true
   project: norm-comparison
-  group: resnet50-imagenet-ecoset-norm-experiment
-  tags: [resnet50, norm-experiment, imagenet_ecoset136, no-augment, derf_vp]
+  group: derf-vp-investigation
+  tags: [resnet50, derf_vp, imagenet_ecoset136, no-augment]

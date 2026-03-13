@@ -1,8 +1,8 @@
 """ConvNeXtV2 implementation with configurable normalization."""
 import torch
 import torch.nn as nn
-from src.utils.layers import LayerNorm, GRN
-from src.models.norms import NoNorm, WSConv2d, RMSNorm2d, RMSNorm, Derf2d
+from src.utils.layers import GRN
+from src.models.norms import NoNorm, WSConv2d, RMSNorm2d, Derf2d, Derf2dVP
 from timm.layers.drop import DropPath
 from timm.layers.weight_init import trunc_normal_
 
@@ -23,19 +23,21 @@ class Block(nn.Module):
         self.dwconv = conv_cls(dim, dim, kernel_size=7, padding=3, groups=dim) # depthwise conv
 
         if norm_type == "layernorm":
-            self.norm = LayerNorm(dim, eps=1e-6)
+            # GroupNorm(1) normalizes over (C, H, W) — same scope as ResNet's LayerNorm
+            self.norm = nn.GroupNorm(1, dim)
         elif norm_type == "batchnorm":
             self.norm = nn.BatchNorm2d(dim)
         elif norm_type == "groupnorm":
             self.norm = nn.GroupNorm(32, dim)
         elif norm_type == "rmsnorm":
-            # Channels-last RMSNorm over C only — matches LayerNorm axes
-            self.norm = RMSNorm(dim, bias=False)
+            # RMSNorm2d normalizes over (C, H, W) — same scope as ResNet's RMSNorm
+            self.norm = RMSNorm2d(dim)
         elif norm_type == "rmsnorm_bias":
-            # RMSNorm + bias — ablation to isolate mean centering vs bias effect
-            self.norm = RMSNorm(dim, bias=True)
+            self.norm = RMSNorm2d(dim, bias=True)
         elif norm_type == "derf":
             self.norm = Derf2d(dim)
+        elif norm_type == "derf_vp":
+            self.norm = Derf2dVP(dim)
         elif norm_type in ("nonorm", "nonorm_ws"):
             self.norm = NoNorm(dim)
         else:
@@ -51,14 +53,9 @@ class Block(nn.Module):
         input = x
         x = self.dwconv(x)
 
-        if self.norm_type in ("layernorm", "rmsnorm", "rmsnorm_bias"):
-            # These norms operate on channels-last: permute first
-            x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
-            x = self.norm(x)
-        else:
-            # BN/GN/NoNorm operate on channels-first: norm then permute
-            x = self.norm(x)
-            x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
+        # All norms operate on channels-first (N, C, H, W); permute after
+        x = self.norm(x)
+        x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
 
         x = self.pwconv1(x)
         x = self.act(x)
@@ -143,17 +140,19 @@ class ConvNeXtV2(nn.Module):
     def _make_downsample_norm(self, dim):
         """Create norm layer for stem/downsampling (always channels-first)."""
         if self.norm_type == "layernorm":
-            return LayerNorm(dim, eps=1e-6, data_format="channels_first")
+            return nn.GroupNorm(1, dim)
         elif self.norm_type == "batchnorm":
             return nn.BatchNorm2d(dim)
         elif self.norm_type == "groupnorm":
             return nn.GroupNorm(32, dim)
         elif self.norm_type == "rmsnorm":
-            return RMSNorm(dim, data_format="channels_first", bias=False)
+            return RMSNorm2d(dim)
         elif self.norm_type == "rmsnorm_bias":
-            return RMSNorm(dim, data_format="channels_first", bias=True)
+            return RMSNorm2d(dim, bias=True)
         elif self.norm_type == "derf":
             return Derf2d(dim)
+        elif self.norm_type == "derf_vp":
+            return Derf2dVP(dim)
         elif self.norm_type in ("nonorm", "nonorm_ws"):
             return NoNorm(dim)
         else:
