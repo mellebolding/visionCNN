@@ -94,14 +94,16 @@ def average_histories(histories):
     """Average a list of history dicts element-wise."""
     if not histories:
         return None
-    # Use shortest length in case seeds have different epoch counts
     min_len = min(len(h["epoch"]) for h in histories)
     keys = [k for k in histories[0] if k != "epoch"]
     avg = {"epoch": histories[0]["epoch"][:min_len]}
     for k in keys:
+        # Per-key min length in case some seeds logged fewer OOD entries
+        k_len = min(len(h.get(k, [])) for h in histories)
+        use_len = min(min_len, k_len)
         avg[k] = [
-            float(np.mean([h[k][i] for h in histories]))
-            for i in range(min_len)
+            float(np.mean([h[k][i] for h in histories if k in h and len(h[k]) > i]))
+            for i in range(use_len)
         ]
     return avg
 
@@ -203,21 +205,75 @@ def load_ood_history(log_dir):
     return histories
 
 
-def load_ood_results(log_dir):
-    """Load OOD evaluation results if available (from evaluate_ood_full.py output).
+def load_ood_final(log_dir):
+    """Load final-epoch OOD metrics from train.log files, seed-averaged.
 
-    Looks for results/ood_summary.csv produced by evaluate_ood_full.py.
-    Returns dict or None.
+    Returns dict[norm] -> dict[metric -> (mean, std)]
+    Metrics: imagenet_r, imagenet_a, imagenet_sketch,
+             imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3,
+             imagenet_c_fog_s3, imagenet_c_contrast_s3
     """
-    ood_path = os.path.join(log_dir, "..", "results", "ood_summary.csv")
-    if not os.path.exists(ood_path):
-        return None
+    import re
+    ood_pat = re.compile(r"OOD accuracies: (.+)$")
+    val_kv  = re.compile(r"([\w_]+): ([\d.]+)%")
+
+    def _parse_final(log_path):
+        last_ood = None
+        with open(log_path) as f:
+            for line in f:
+                om = ood_pat.search(line)
+                if om:
+                    last_ood = {k: float(v) for k, v in val_kv.findall(om.group(1))}
+        return last_ood
+
     results = {}
-    with open(ood_path) as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            key = (row.get("arch", ""), row.get("norm", ""))
-            results[key] = row
+    for norm in NORMS:
+        seed_vals = []
+        for seed in SEEDS:
+            log_path = os.path.join(
+                log_dir, f"resnet50_{norm}_imagenet_ecoset_ecovalid_seed{seed}", "train.log"
+            )
+            if os.path.exists(log_path):
+                d = _parse_final(log_path)
+                if d:
+                    seed_vals.append(d)
+        if seed_vals:
+            all_keys = set().union(*[set(d.keys()) for d in seed_vals])
+            results[norm] = {
+                k: (
+                    float(np.mean([d[k] for d in seed_vals if k in d])),
+                    float(np.std( [d[k] for d in seed_vals if k in d]))
+                )
+                for k in all_keys
+            }
+    return results
+
+
+def load_imagenet_c_full(log_dir):
+    """Load full imagenet-c mCE from ood_results.json (if available), seed-averaged.
+
+    Returns dict[norm] -> dict[metric -> (mean, std)], or {} if not yet run.
+    """
+    import json
+    results = {}
+    for norm in NORMS:
+        seed_vals = []
+        for seed in SEEDS:
+            json_path = os.path.join(
+                log_dir, f"resnet50_{norm}_imagenet_ecoset_ecovalid_seed{seed}", "ood_results.json"
+            )
+            if os.path.exists(json_path):
+                with open(json_path) as f:
+                    seed_vals.append(json.load(f))
+        if seed_vals:
+            all_keys = set().union(*[set(d.keys()) for d in seed_vals])
+            results[norm] = {
+                k: (
+                    float(np.mean([d[k] for d in seed_vals if k in d])),
+                    float(np.std( [d[k] for d in seed_vals if k in d]))
+                )
+                for k in all_keys
+            }
     return results
 
 
@@ -780,89 +836,144 @@ def plot_overfitting(noaug, output_dir):
 # 8. OOD analysis from ecovalid train logs
 # ---------------------------------------------------------------------------
 
-# OOD results at final epoch — seed-averaged across seeds 42-46
-# Source: logs/resnet50_*_imagenet_ecoset_ecovalid_seed*/train.log (last OOD line per seed)
-_ECOVALID_OOD = {
-    "batchnorm": {
-        "imagenet_c_contrast": 35.5, "imagenet_c_blur": 27.3,
-        "imagenet_c_fog": 32.9, "imagenet_c_noise": 30.8,
-    },
-    "layernorm": {
-        "imagenet_c_contrast": 30.7, "imagenet_c_blur": 27.6,
-        "imagenet_c_fog": 19.2, "imagenet_c_noise": 15.2,
-    },
-    "groupnorm": {
-        "imagenet_c_contrast": 28.8, "imagenet_c_blur": 23.7,
-        "imagenet_c_fog": 17.0, "imagenet_c_noise": 14.0,
-    },
-    "rmsnorm": {
-        "imagenet_c_contrast": 26.4, "imagenet_c_blur": 26.0,
-        "imagenet_c_fog": 19.2, "imagenet_c_noise": 13.9,
-    },
-    "derf": {
-        "imagenet_c_contrast": 12.8, "imagenet_c_blur": 15.5,
-        "imagenet_c_fog": 5.1, "imagenet_c_noise": 12.9,
-    },
-    "localnorm": {
-        "imagenet_c_contrast": 19.0, "imagenet_c_blur": 17.1,
-        "imagenet_c_fog": 25.5, "imagenet_c_noise": 16.5,
-    },
+STANDARD_OOD = ["imagenet_r", "imagenet_a", "imagenet_sketch"]
+STANDARD_OOD_LABELS = {
+    "imagenet_r":       "ImageNet-R",
+    "imagenet_a":       "ImageNet-A",
+    "imagenet_sketch":  "ImageNet-Sketch",
 }
 
-OOD_DATASETS = ["imagenet_c_contrast", "imagenet_c_blur",
-                 "imagenet_c_fog", "imagenet_c_noise"]
-OOD_LABELS = {
-    "imagenet_c_noise": "C-Noise",
-    "imagenet_c_blur": "C-Blur",
-    "imagenet_c_fog": "C-Fog",
-    "imagenet_c_contrast": "C-Contrast",
+C_CORRUPTION_DATASETS = [
+    "imagenet_c_gaussian_noise_s3",
+    "imagenet_c_defocus_blur_s3",
+    "imagenet_c_fog_s3",
+    "imagenet_c_contrast_s3",
+]
+C_CORRUPTION_LABELS = {
+    "imagenet_c_gaussian_noise_s3": "Noise (s3)",
+    "imagenet_c_defocus_blur_s3":   "Blur (s3)",
+    "imagenet_c_fog_s3":            "Fog (s3)",
+    "imagenet_c_contrast_s3":       "Contrast (s3)",
 }
 
 
-def plot_ood_analysis(ecovalid, output_dir):
+def plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir):
+    """4-panel OOD analysis: standard OOD, C-corruptions, ID/OOD scatter, robustness gap."""
+    if not ood_final:
+        print("  Skipping OOD analysis (no OOD data found in train logs)")
+        return
     set_style()
-    ood = _ECOVALID_OOD
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 6))
+    has_c_full = bool(imagenet_c_full)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
     fig.suptitle(
-        "OOD Robustness: ResNet-50, Eco-Valid Augmentations\n"
-        "(Note: BatchNorm dominates ID accuracy but collapses on OOD)",
-        fontsize=13, fontweight="bold",
+        "OOD Robustness: ResNet-50, Eco-Valid Augmentations (5 seeds, mean ± std)",
+        fontsize=14, fontweight="bold",
     )
 
-    # ---- Panel 1: OOD accuracy per dataset, grouped by norm ----
-    ax = axes[0]
-    x = np.arange(len(OOD_DATASETS))
-    width = 0.15
-    n_norms = len(NORMS)
-    offsets = np.linspace(-(n_norms - 1) / 2, (n_norms - 1) / 2, n_norms) * width
-    for i, norm in enumerate(NORMS):
-        vals = [ood[norm][ds] for ds in OOD_DATASETS]
-        ax.bar(x + offsets[i], vals, width, label=NORM_LABELS[norm],
-               color=NORM_COLORS[norm], alpha=0.85, edgecolor="white", linewidth=0.4)
-    ax.set_xticks(x)
-    ax.set_xticklabels([OOD_LABELS[ds] for ds in OOD_DATASETS], rotation=35, ha="right")
-    ax.set_ylabel("Accuracy (%)")
-    ax.set_title("OOD Accuracy by Dataset and Norm")
-    ax.legend(fontsize=8)
-    ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
+    # ---- Panel 1: Standard OOD (r, a, sketch) ----
+    ax = axes[0, 0]
+    avail_std = [ds for ds in STANDARD_OOD
+                 if any(ds in ood_final.get(n, {}) for n in NORMS)]
+    if avail_std:
+        x = np.arange(len(avail_std))
+        width = 0.13
+        offsets = np.linspace(-(len(NORMS) - 1) / 2, (len(NORMS) - 1) / 2, len(NORMS)) * width
+        for i, norm in enumerate(NORMS):
+            means = [ood_final.get(norm, {}).get(ds, (0, 0))[0] for ds in avail_std]
+            stds  = [ood_final.get(norm, {}).get(ds, (0, 0))[1] for ds in avail_std]
+            ax.bar(x + offsets[i], means, width, label=NORM_LABELS[norm],
+                   color=NORM_COLORS[norm], alpha=0.85, edgecolor="white", linewidth=0.4,
+                   yerr=stds, capsize=2, error_kw={"linewidth": 0.8})
+        ax.set_xticks(x)
+        ax.set_xticklabels([STANDARD_OOD_LABELS[ds] for ds in avail_std])
+        ax.set_ylabel("Accuracy (%)")
+        ax.set_title("Standard OOD Datasets")
+        ax.legend(fontsize=8)
+        ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
 
-    # ---- Panel 2: In-distribution vs OOD mean scatter ----
-    ax = axes[1]
-    ood_mean_datasets = OOD_DATASETS
+    # ---- Panel 2: C-corruptions (full mCE if available, else 4-corruption proxy) ----
+    ax = axes[0, 1]
+    if has_c_full:
+        mce_key = "ood/imagenet_c_full/mce"
+        norms_c = [n for n in NORMS if mce_key in imagenet_c_full.get(n, {})]
+        if norms_c:
+            x = np.arange(len(norms_c))
+            means = [imagenet_c_full[n][mce_key][0] for n in norms_c]
+            stds  = [imagenet_c_full[n][mce_key][1] for n in norms_c]
+            ax.bar(x, means, color=[NORM_COLORS[n] for n in norms_c],
+                   alpha=0.85, edgecolor="white", linewidth=0.4,
+                   yerr=stds, capsize=3, error_kw={"linewidth": 0.8})
+            ax.set_xticks(x)
+            ax.set_xticklabels([NORM_LABELS[n] for n in norms_c], rotation=15, ha="right")
+            ax.set_ylabel("mCE (lower = more robust)")
+            ax.set_title("ImageNet-C Full: Mean Corruption Error")
+    else:
+        avail_c = [ds for ds in C_CORRUPTION_DATASETS
+                   if any(ds in ood_final.get(n, {}) for n in NORMS)]
+        if avail_c:
+            x = np.arange(len(avail_c))
+            width = 0.13
+            offsets = np.linspace(-(len(NORMS) - 1) / 2, (len(NORMS) - 1) / 2, len(NORMS)) * width
+            for i, norm in enumerate(NORMS):
+                means = [ood_final.get(norm, {}).get(ds, (0, 0))[0] for ds in avail_c]
+                stds  = [ood_final.get(norm, {}).get(ds, (0, 0))[1] for ds in avail_c]
+                ax.bar(x + offsets[i], means, width, label=NORM_LABELS[norm],
+                       color=NORM_COLORS[norm], alpha=0.85, edgecolor="white", linewidth=0.4,
+                       yerr=stds, capsize=2, error_kw={"linewidth": 0.8})
+            ax.set_xticks(x)
+            ax.set_xticklabels([C_CORRUPTION_LABELS[ds] for ds in avail_c], rotation=20, ha="right")
+            ax.set_ylabel("Accuracy (%)")
+            ax.set_title("ImageNet-C Corruptions (sev=3, proxy)")
+            ax.legend(fontsize=8)
+            ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
+
+    # ---- Panel 3: ID vs OOD scatter ----
+    ax = axes[1, 0]
     for norm in NORMS:
         id_acc = best_val(ecovalid.get(norm)) or 0
-        ood_mean = np.mean([ood[norm][ds] for ds in ood_mean_datasets])
+        if id_acc < 2.0:
+            continue
+        ood_vals = [ood_final.get(norm, {}).get(ds, (0, 0))[0]
+                    for ds in STANDARD_OOD if ds in ood_final.get(norm, {})]
+        if not ood_vals:
+            continue
+        ood_mean = np.mean(ood_vals)
         c = NORM_COLORS[norm]
-        ax.scatter(id_acc, ood_mean, color=c, s=120, zorder=5)
+        ax.scatter(id_acc, ood_mean, color=c, s=130, zorder=5)
         ax.annotate(NORM_LABELS[norm], (id_acc, ood_mean),
                     textcoords="offset points", xytext=(6, 3), fontsize=9, color=c)
     ax.set_xlabel("In-Distribution Val Accuracy (%)")
-    ax.set_ylabel("Mean OOD Accuracy (%)")
-    ax.set_title("ID vs OOD Trade-off\n(BatchNorm: highest ID, worst OOD)")
-    # Add diagonal reference line
-    xlim = ax.get_xlim()
+    ax.set_ylabel("Mean OOD Accuracy (R + A + Sketch, %)")
+    ax.set_title("ID vs OOD Trade-off")
     ax.plot([0, 100], [0, 100], color="gray", linestyle=":", alpha=0.4, linewidth=1)
+
+    # ---- Panel 4: Robustness gap (OOD_mean − ID_acc) ----
+    ax = axes[1, 1]
+    norms_valid, gap_vals, gap_errs = [], [], []
+    for norm in NORMS:
+        id_acc = best_val(ecovalid.get(norm)) or 0
+        if id_acc < 2.0:
+            continue
+        ood_means = [ood_final.get(norm, {}).get(ds, (0, 0))[0]
+                     for ds in STANDARD_OOD if ds in ood_final.get(norm, {})]
+        ood_stds  = [ood_final.get(norm, {}).get(ds, (0, 0))[1]
+                     for ds in STANDARD_OOD if ds in ood_final.get(norm, {})]
+        if not ood_means:
+            continue
+        norms_valid.append(norm)
+        gap_vals.append(np.mean(ood_means) - id_acc)
+        gap_errs.append(np.mean(ood_stds))
+    if norms_valid:
+        x = np.arange(len(norms_valid))
+        ax.bar(x, gap_vals, color=[NORM_COLORS[n] for n in norms_valid],
+               alpha=0.85, edgecolor="white", linewidth=0.4,
+               yerr=gap_errs, capsize=3, error_kw={"linewidth": 0.8})
+        ax.axhline(0, color="black", linewidth=0.8)
+        ax.set_xticks(x)
+        ax.set_xticklabels([NORM_LABELS[n] for n in norms_valid], rotation=15, ha="right")
+        ax.set_ylabel("OOD mean acc − ID val acc (pp)")
+        ax.set_title("Robustness Gap (closer to 0 = more robust)")
 
     plt.tight_layout()
     out = os.path.join(output_dir, "ood_analysis.png")
@@ -881,12 +992,18 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
 
     # Datasets logged during training (key as they appear in train.log)
     logged_datasets = [
-        "imagenet_c_contrast_s3",
+        "imagenet_r",
+        "imagenet_a",
+        "imagenet_sketch",
+        "imagenet_c_gaussian_noise_s3",
         "imagenet_c_defocus_blur_s3",
         "imagenet_c_fog_s3",
-        "imagenet_c_gaussian_noise_s3",
+        "imagenet_c_contrast_s3",
     ]
     ds_labels = {
+        "imagenet_r":                  "ImageNet-R",
+        "imagenet_a":                  "ImageNet-A",
+        "imagenet_sketch":             "ImageNet-Sketch",
         "imagenet_c_gaussian_noise_s3": "C-Noise (s3)",
         "imagenet_c_defocus_blur_s3":  "C-Blur (s3)",
         "imagenet_c_fog_s3":           "C-Fog (s3)",
@@ -910,24 +1027,12 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
             h = ood_histories.get(norm)
             if h is None or ds_key not in h:
                 continue
-            epochs = h["epoch"]
             vals   = h[ds_key]
+            epochs = h["epoch"][:len(vals)]
             c  = NORM_COLORS[norm]
             ls = NORM_STYLES[norm]
             ax.plot(epochs, vals, color=c, linestyle=ls,
                     linewidth=1.6, label=NORM_LABELS[norm])
-
-        # Mark final value from _ECOVALID_OOD as a dot
-        ds_short = ds_key.replace("_s3", "").replace("imagenet_c_", "imagenet_c_")
-        ood_key_map = {
-            "imagenet_r":                  "imagenet_r",
-            "imagenet_sketch":             "imagenet_sketch",
-            "imagenet_a":                  "imagenet_a",
-            "imagenet_c_gaussian_noise_s3": "imagenet_c_noise",
-            "imagenet_c_defocus_blur_s3":  "imagenet_c_blur",
-            "imagenet_c_fog_s3":           "imagenet_c_fog",
-            "imagenet_c_contrast_s3":      "imagenet_c_contrast",
-        }
 
         ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.5)
         ax.set_title(ds_labels[ds_key], fontsize=10)
@@ -960,28 +1065,38 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
     print(f"  Saved: {out}")
 
 
-def print_ood_table():
-    ood = _ECOVALID_OOD
-    print("\n" + "=" * 75)
-    print("OOD ROBUSTNESS — ResNet-50, Eco-Valid Augmentations (final epoch)")
-    print("=" * 75)
-    header = f"{'Norm':<12}" + "".join(f"{OOD_LABELS[ds]:>12}" for ds in OOD_DATASETS) + f"{'Mean':>10}"
+def print_ood_table(ood_final):
+    if not ood_final:
+        return
+    all_ds = STANDARD_OOD + C_CORRUPTION_DATASETS
+    available = [ds for ds in all_ds if any(ds in ood_final.get(n, {}) for n in NORMS)]
+    short = {
+        "imagenet_r": "IN-R", "imagenet_a": "IN-A", "imagenet_sketch": "Sketch",
+        "imagenet_c_gaussian_noise_s3": "C-Noise",
+        "imagenet_c_defocus_blur_s3":   "C-Blur",
+        "imagenet_c_fog_s3":            "C-Fog",
+        "imagenet_c_contrast_s3":       "C-Cntst",
+    }
+    print("\n" + "=" * 90)
+    print("OOD ROBUSTNESS — ResNet-50, Eco-Valid Augmentations (final epoch, 5-seed mean)")
+    print("=" * 90)
+    header = f"{'Norm':<12}" + "".join(f"{short.get(ds, ds):>10}" for ds in available) + f"{'C-Mean':>10}"
     print(header)
-    print("-" * (12 + 12 * len(OOD_DATASETS) + 10))
+    print("-" * len(header))
     for norm in NORMS:
         row = f"{NORM_LABELS[norm]:<12}"
-        vals = [ood[norm][ds] for ds in OOD_DATASETS]
-        for v in vals:
-            row += f"{v:>11.1f}%"
-        row += f"{np.mean(vals):>9.1f}%"
+        c_vals = []
+        for ds in available:
+            entry = ood_final.get(norm, {}).get(ds)
+            if entry:
+                mean, std = entry
+                row += f"{mean:>9.1f}%"
+                if ds in C_CORRUPTION_DATASETS:
+                    c_vals.append(mean)
+            else:
+                row += f"{'—':>10}"
+        row += f"{np.mean(c_vals):>9.1f}%" if c_vals else f"{'—':>10}"
         print(row)
-
-    print()
-    id_accs = {norm: best_val(None) for norm in NORMS}  # placeholder
-    print("Note: Only 4 C-corruption datasets logged during training (no IN-R/Sketch/A).")
-    bn = ood["batchnorm"]; gn = ood["groupnorm"]
-    print(f"BatchNorm vs GroupNorm on C-Blur: {bn['imagenet_c_blur']:.1f}% vs {gn['imagenet_c_blur']:.1f}%")
-    print(f"BatchNorm vs GroupNorm on C-Noise: {bn['imagenet_c_noise']:.1f}% vs {gn['imagenet_c_noise']:.1f}%")
     print()
 
 
@@ -992,7 +1107,7 @@ def print_ood_table():
 def main():
     parser = argparse.ArgumentParser(description="Analyze imagenet_ecoset norm experiment")
     parser.add_argument("--log_dir", default="logs")
-    parser.add_argument("--output_dir", default="results/imagenet_ecoset_analysis")
+    parser.add_argument("--output_dir", default="results/imagenet_ecoset_ecovalid_5seed")
     args = parser.parse_args()
 
     log_dir = args.log_dir
@@ -1023,17 +1138,21 @@ def main():
     if ecovalid:
         plot_augmentation_comparison(noaug, ecovalid, output_dir)
 
-    # OOD analysis (hardcoded from ecovalid train logs)
-    print_ood_table()
-    plot_ood_analysis(ecovalid, output_dir)
+    # OOD analysis — loaded from train logs + ood_results.json (if available)
+    ood_final = load_ood_final(log_dir)
+    imagenet_c_full = load_imagenet_c_full(log_dir)
+    if imagenet_c_full:
+        print(f"  Loaded full imagenet-c results for {len(imagenet_c_full)} norms")
+    else:
+        print("  No ood_results.json found; using 4-corruption proxy from training logs")
+    print_ood_table(ood_final)
+    plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir)
 
     # OOD evolution over training (parsed from train.log)
     ood_histories = load_ood_history(log_dir)
     plot_ood_evolution(ood_histories, ecovalid, output_dir)
 
     print(f"\nAll outputs saved to: {output_dir}/")
-    print("\nTo run full post-training OOD evaluation (all 15 corruptions × 5 severities):")
-    print("  ./scripts/run_full_ood_eval_imagenet_ecoset.sh  (requires ~2-3h GPU time)")
 
 
 if __name__ == "__main__":
