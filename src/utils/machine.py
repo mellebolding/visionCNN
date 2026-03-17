@@ -65,7 +65,7 @@ def resolve_machine_config(cfg: dict, project_root: Path) -> tuple:
     data_defaults = machine_cfg.get("data_defaults", {})
 
     # ImageNet root — only fill in if experiment config has a placeholder
-    if cfg.get("data", {}).get("dataset", "").lower() in ("imagenet", "imagenet100"):
+    if cfg.get("data", {}).get("dataset", "").lower() in ("imagenet", "imagenet100", "imagenet_ecoset136"):
         current_root = cfg.get("data", {}).get("root", "")
         if current_root in (None, "<IMAGENET_ROOT>", "", "None"):
             imagenet_root = paths.get("imagenet_root")
@@ -77,6 +77,15 @@ def resolve_machine_config(cfg: dict, project_root: Path) -> tuple:
     log_dir = paths.get("log_dir")
     if log_dir:
         cfg.setdefault("_machine", {})["log_dir"] = log_dir
+
+    # OOD datasets root — override placeholder if machine config specifies one
+    datasets_root = paths.get("datasets_root")
+    if datasets_root:
+        ood_cfg = cfg.get("ood_eval", {})
+        current_root = ood_cfg.get("datasets_root", "")
+        if current_root in (None, "<DATASETS_ROOT>", "", "None") or not os.path.isdir(current_root):
+            ood_cfg["datasets_root"] = datasets_root
+            cfg["ood_eval"] = ood_cfg
 
     # Data loading defaults (only fill in when not set in experiment config)
     data = cfg.setdefault("data", {})

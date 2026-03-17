@@ -71,7 +71,7 @@ def get_transforms(cfg, is_train=True):
     # Use ImageNet normalization for ImageNet/ImageNet-100, otherwise use simple normalization
     # Skip normalization if using GPU transforms (will be done on GPU)
     if not use_gpu_transforms:
-        if dataset_name in ("imagenet", "imagenet100"):
+        if dataset_name in ("imagenet", "imagenet100", "imagenet_ecoset136"):
             normalize = transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
@@ -145,10 +145,11 @@ def get_transforms(cfg, is_train=True):
                     saturation=saturation, hue=hue
                 ))
 
-            # Optional: Gaussian blur
+            # Optional: Gaussian blur (kernel_size=7 is sufficient for sigma=(0.1,2.0)
+            # and ~10x faster than kernel_size=23 on CPU)
             if data_cfg.get("gaussian_blur", False):
                 transform_list.append(transforms.GaussianBlur(
-                    kernel_size=23, sigma=(0.1, 2.0)
+                    kernel_size=7, sigma=(0.1, 2.0)
                 ))
 
             # Optional: Random grayscale
@@ -369,6 +370,7 @@ def build_dataloader(
         Samplers are returned so set_epoch can be called during training
     """
     batch_size = cfg.get("training", {}).get("batch_size", 64)
+    val_batch_size = cfg.get("training", {}).get("val_batch_size", batch_size)
     num_workers = cfg.get("data", {}).get("num_workers", 4)
     pin_memory = cfg.get("data", {}).get("pin_memory", True)
     persistent_workers = cfg.get("data", {}).get("persistent_workers", False)
@@ -434,7 +436,7 @@ def build_dataloader(
 
     val_loader = DataLoader(
         val_dataset,
-        batch_size=batch_size,
+        batch_size=val_batch_size,
         shuffle=False,
         sampler=val_sampler,
         drop_last=False,  # Don't drop last for validation
@@ -576,6 +578,7 @@ def build_ood_dataloaders(
 
     datasets_root = ood_cfg.get("datasets_root", "/export/scratch1/home/melle/datasets")
     batch_size = cfg.get("training", {}).get("batch_size", 64)
+    val_batch_size = cfg.get("training", {}).get("val_batch_size", batch_size)
     num_workers = min(cfg.get("data", {}).get("num_workers", 8), 8)
 
     # Standard val transform (no augmentation)
@@ -591,7 +594,7 @@ def build_ood_dataloaders(
 
     loaders = {}
     loader_kwargs = {
-        "batch_size": batch_size,
+        "batch_size": val_batch_size,
         "shuffle": False,
         "num_workers": num_workers,
         "pin_memory": True,

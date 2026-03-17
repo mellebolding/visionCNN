@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(eval '$\\(micromamba shell hook -s bash 2>/dev/null\\)')",
+      "Bash(micromamba env:*)",
+      "Bash(/gpfs/work1/0/prjs0771/melle/micromamba/bin/micromamba env:*)",
+      "Read(//dev/**)",
+      "Bash(tail -5 /gpfs/home1/mbolding/visionCNN/logs/slurm/*_test2_batchnorm.err)",
+      "Bash(eval '$\\(/gpfs/work1/0/prjs0771/melle/micromamba/bin/micromamba shell hook -s bash\\)')",
+      "Bash(micromamba activate:*)",
+      "Bash(pip show:*)",
+      "Bash(python -c \"import pkg_resources\")",
+      "Bash(NORMS=\"batchnorm localnorm\" SEEDS=\"42\" ./scripts/submit_snellius_ecovalid.sh)",
+      "Bash(NORMS=\"batchnorm localnorm\" SEEDS=\"42 43\" bash -x scripts/submit_snellius_ecovalid.sh)",
+      "Bash(scancel 20761044 20761045)",
+      "Bash(ssh -o StrictHostKeyChecking=no gcn32 \"top -bn1 | head -20\")",
+      "Bash(NORMS=\"derf localnorm\" ./scripts/submit_snellius_ecovalid.sh)",
+      "Bash(sinfo -p gpu_a100 -o '%N %G %f' --noheader)",
+      "Bash(quota -s)",
+      "Bash(lfs quota:*)",
+      "Read(//gpfs/home1/mbolding/visionCNN/$2 ~ /^derf|^localnor/**)",
+      "Bash(xargs scancel:*)",
+      "Bash(/dev/null echo:*)",
+      "Bash(sort -k3 -t/ -n)",
+      "Read(//usr/local/**)",
+      "Bash(/projects/prjs0771/melle/envs/pytorch21-cuda121/bin/python3 scripts/analyze_imagenet_ecoset_experiment.py --log_dir logs --output_dir results/imagenet_ecoset_ecovalid_analysis)",
+      "Bash(find /projects/prjs0771/melle -maxdepth 6 -path */envs/*/bin/python*)",
+      "Read(//projects/prjs0771/melle/**)",
+      "Bash(quota -g prjs0771)",
+      "Bash(getquota -g prjs0771)",
+      "Bash(myquota)",
+      "Bash(quota)",
+      "Bash(gpfsquota)",
+      "Bash(storagequota)",
+      "Bash(du -sh /gpfs/home1/mbolding/*/)",
+      "Bash(ln -s /projects/prjs0771/melle/projects/visionCNN/logs /gpfs/home1/mbolding/visionCNN/logs)"
+    ],
+    "additionalDirectories": [
+      "/gpfs/home1/mbolding/visionCNN/logs"
+    ]
+  }
+}

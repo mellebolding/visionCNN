@@ -56,13 +56,22 @@ module purge
 module load 2023
 module load CUDA/12.1.1
 
-# Activate micromamba environment (same env as guppy/sakura)
-export MAMBA_ROOT_PREFIX="/projects/prjs0771/melle/micromamba"
-eval "$($MAMBA_ROOT_PREFIX/bin/micromamba shell hook -s bash)"
-micromamba activate visioncnn
+# Activate micromamba environment
+# Binary lives at /gpfs/work1/0/prjs0771/melle/micromamba/bin/micromamba
+# visioncnn env lives at /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn
+MICROMAMBA="/gpfs/work1/0/prjs0771/melle/micromamba/bin/micromamba"
+eval "$($MICROMAMBA shell hook -s bash)"
+micromamba activate /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn
 
 # Machine identifier for config resolution
 export VCNN_MACHINE=snellius
+
+# Redirect ALL wandb storage off home dir (quota) onto project scratch
+WANDB_BASE="/projects/prjs0771/melle/projects/visionCNN/wandb"
+export WANDB_DIR="$WANDB_BASE"
+export WANDB_CACHE_DIR="$WANDB_BASE/cache"
+export WANDB_DATA_DIR="$WANDB_BASE"   # controls artifacts staging dir
+mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR" "$WANDB_DATA_DIR"
 
 # Set environment variables for distributed training
 # Note: MASTER_ADDR and MASTER_PORT are needed for torchrun.

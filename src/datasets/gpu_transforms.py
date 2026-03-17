@@ -105,8 +105,8 @@ def build_gpu_transforms(cfg, is_train=True):
     data_cfg = cfg.get("data", {})
     dataset_name = data_cfg.get("dataset", "cifar10").lower()
 
-    # Use ImageNet normalization for ImageNet, otherwise simple normalization
-    if dataset_name == "imagenet":
+    # Use ImageNet normalization for ImageNet-based datasets
+    if dataset_name in ("imagenet", "imagenet100", "imagenet_ecoset136"):
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
     else:

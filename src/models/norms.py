@@ -35,8 +35,10 @@ class RMSNorm2d(nn.Module):
 
     def forward(self, x):
         # x: (N, C, H, W) — compute RMS over C, H, W
-        rms = x.float().pow(2).mean(dim=[1, 2, 3], keepdim=True).add(self.eps).sqrt()
-        x = (x / rms) * self.weight[None, :, None, None]
+        # Compute mean-of-squares in input dtype to avoid a large float32 copy,
+        # then upcast the scalar result for numerical stability of sqrt.
+        rms = x.pow(2).mean(dim=[1, 2, 3], keepdim=True).float().add(self.eps).sqrt()
+        x = (x / rms.to(x.dtype)) * self.weight[None, :, None, None]
         if self.bias is not None:
             x = x + self.bias[None, :, None, None]
         return x
@@ -123,28 +125,81 @@ class Derf2d(nn.Module):
 class Derf2dVP(nn.Module):
     """Variance-Preserving Derf normalization for 2D feature maps.
 
-    Same as Derf2d but with weight initialized to 1/std(erf(alpha*x)) for
-    x ~ N(0,1). This ensures:
-      - Output variance ≈ input variance at initialization (no scale collapse)
-      - Gradient magnitude ≈ 1.0 per layer (no vanishing gradients)
+    Normalizes input over (C, H, W) per sample (like LayerNorm for CNNs),
+    then applies the learnable erf transformation. Without the pre-normalization
+    step, conv outputs are unscaled and erf saturates early in training,
+    causing complete training collapse in ResNet-50.
 
-    With weight_init=1.0 (original Derf2d), erf(0.5*x) reduces std by ~0.46x
-    per layer, leading to 0.46^48 ≈ 10^-15 scale collapse in ResNet-50.
-    VP init compensates: weight_init ≈ 2.15 for alpha=0.5.
+    alpha controls nonlinearity: 0 → linear (≈ LayerNorm), large → hard sign.
+    VP weight init ensures output variance ≈ 1 at initialization.
     """
 
-    def __init__(self, num_channels, alpha_init=0.5, shift_init=0.0):
+    def __init__(self, num_channels, alpha_init=0.5, shift_init=0.0, eps=1e-5):
         super().__init__()
         self.alpha = nn.Parameter(torch.tensor(float(alpha_init)))
         self.shift = nn.Parameter(torch.tensor(float(shift_init)))
         w_init = _derf_vp_weight_init(alpha_init)
         self.weight = nn.Parameter(torch.full((num_channels,), w_init))
         self.bias = nn.Parameter(torch.zeros(num_channels))
+        self.eps = eps
 
     def forward(self, x):
         # x: (N, C, H, W)
-        out = torch.erf(self.alpha * x + self.shift)
+        # Normalize per sample over (C, H, W) using fused group_norm (no large intermediates)
+        x_norm = F.group_norm(x, 1, eps=self.eps)
+        out = torch.erf(self.alpha * x_norm + self.shift)
         return out * self.weight[None, :, None, None] + self.bias[None, :, None, None]
+
+
+class LocalNorm2d(nn.Module):
+    """LocalNorm for 2D feature maps (Yin et al., 2019, arXiv 1902.06550).
+
+    Training: batch split into K groups; each group normalized with its own
+    (mu_k, sigma_k) computed over (N/K, H, W) per channel, and its own
+    learnable gamma_k, beta_k parameters (shape: K x C).
+    Inference: running statistics accumulated during training (like BatchNorm),
+    with parameters averaged across groups.
+
+    K controls regularization strength — larger K approximates InstanceNorm,
+    smaller K approximates BatchNorm.
+    """
+
+    def __init__(self, num_channels, K=2, eps=1e-5, momentum=0.1):
+        super().__init__()
+        self.K = K
+        self.eps = eps
+        self.momentum = momentum
+        self.weight = nn.Parameter(torch.ones(K, num_channels))   # K x C
+        self.bias   = nn.Parameter(torch.zeros(K, num_channels))  # K x C
+        self.register_buffer('running_mean', torch.zeros(num_channels))
+        self.register_buffer('running_var', torch.ones(num_channels))
+
+    def forward(self, x):
+        N, C, H, W = x.shape
+        if self.training:
+            K = min(self.K, N)
+            splits = torch.chunk(x, K, dim=0)
+            outs = []
+            for k, x_k in enumerate(splits):
+                mean = x_k.mean(dim=[0, 2, 3], keepdim=True)
+                std  = x_k.var(dim=[0, 2, 3], keepdim=True, unbiased=False).float().add(self.eps).sqrt().to(x.dtype)
+                w = self.weight[k % self.K][None, :, None, None]
+                b = self.bias[k   % self.K][None, :, None, None]
+                outs.append((x_k - mean) / std * w + b)
+            # Update running stats from full-batch mean/var (per channel)
+            with torch.no_grad():
+                batch_mean = x.mean(dim=[0, 2, 3])
+                batch_var  = x.var(dim=[0, 2, 3], unbiased=False)
+                self.running_mean.lerp_(batch_mean.float(), self.momentum)
+                self.running_var.lerp_(batch_var.float(), self.momentum)
+            return torch.cat(outs, dim=0)
+        else:
+            # Inference: use running statistics, averaged parameters
+            mean = self.running_mean.to(x.dtype)[None, :, None, None]
+            std  = (self.running_var + self.eps).sqrt().to(x.dtype)[None, :, None, None]
+            w = self.weight.mean(0)[None, :, None, None]
+            b = self.bias.mean(0)[None, :, None, None]
+            return (x - mean) / std * w + b
 
 
 class WSConv2d(nn.Conv2d):
@@ -316,9 +371,11 @@ def get_norm_layer(name: str):
         return Derf2d
     elif name == "derf_vp":
         return Derf2dVP
+    elif name == "localnorm":
+        return partial(LocalNorm2d, K=2)
     elif name in ("nonorm", "nonorm_ws"):
         return NoNorm
     else:
         raise ValueError(
-            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, nonorm, nonorm_ws"
+            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, localnorm, nonorm, nonorm_ws"
         )

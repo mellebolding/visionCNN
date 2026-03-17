@@ -32,8 +32,15 @@ def evaluate_ood(
     use_channels_last: bool = False,
     gpu_transforms: nn.Module | None = None,
     save_predictions: bool = False,
+    bn_adapt: bool = False,
 ) -> dict:
     """Evaluate model on a single OOD dataset.
+
+    Args:
+        bn_adapt: If True, BatchNorm layers are set to train mode so they use
+            live batch statistics from the OOD data rather than running statistics
+            estimated on the training distribution. Useful for measuring how much
+            distribution shift affects BN stats.
 
     Returns:
         dict with keys: loss, acc, n_samples, n_classes_present.
@@ -41,6 +48,18 @@ def evaluate_ood(
     """
     model_to_eval = model.module if hasattr(model, "module") else model
     model_to_eval.eval()
+
+    # Save BN running stats before any adaptation so training is not affected
+    saved_bn_stats = {}
+    if bn_adapt:
+        for name, m in model_to_eval.named_modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d, nn.BatchNorm3d)):
+                saved_bn_stats[name] = (
+                    m.running_mean.clone(),
+                    m.running_var.clone(),
+                    m.num_batches_tracked.clone(),
+                )
+                m.train()  # use live batch stats from OOD data
 
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
@@ -80,7 +99,14 @@ def evaluate_ood(
             all_preds.append(predicted.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
 
-    model_to_eval.train()
+    # Restore BN running stats so training is unaffected
+    model_to_eval.eval()
+    if saved_bn_stats:
+        for name, m in model_to_eval.named_modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d, nn.BatchNorm3d)):
+                m.running_mean.copy_(saved_bn_stats[name][0])
+                m.running_var.copy_(saved_bn_stats[name][1])
+                m.num_batches_tracked.copy_(saved_bn_stats[name][2])
 
     result = {
         "loss": total_loss / max(total, 1),
@@ -103,6 +129,7 @@ def evaluate_all_ood(
     use_channels_last: bool = False,
     gpu_transforms: nn.Module | None = None,
     save_predictions: bool = False,
+    bn_adapt: bool = False,
 ) -> dict:
     """Evaluate model on all OOD datasets.
 
@@ -118,7 +145,7 @@ def evaluate_all_ood(
 
         result = evaluate_ood(
             model, loader, device, use_amp, use_channels_last,
-            gpu_transforms, save_predictions,
+            gpu_transforms, save_predictions, bn_adapt=bn_adapt,
         )
 
         all_metrics[f"ood/{name}/acc"] = result["acc"]

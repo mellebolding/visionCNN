@@ -5,6 +5,7 @@ machine:
 paths:
   imagenet_root: "/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder"
   log_dir: "/projects/prjs0771/melle/projects/visionCNN/logs"
+  datasets_root: "/projects/prjs0771/melle/datasets"
 
 data_defaults:
   num_workers: 16

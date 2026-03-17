@@ -398,6 +398,22 @@ def load_checkpoint(
     return start_epoch, best_acc, history
 
 
+def _should_checkpoint(epoch_1idx: int, schedule: list, total_epochs: int) -> bool:
+    """Return True if epoch_1idx should trigger a checkpoint/validation.
+
+    Schedule is a list of [end_epoch, frequency] pairs applied in order.
+    Example: [[10, 1], [20, 2], [25, 3]] means:
+      epochs 1-10 every 1, epochs 11-20 every 2, epochs 21-25 every 3.
+    Always checkpoints on the final epoch.
+    """
+    if epoch_1idx == total_epochs:
+        return True
+    for end_ep, freq in schedule:
+        if epoch_1idx <= end_ep:
+            return epoch_1idx % freq == 0
+    return False
+
+
 def main(args):
     local_rank = int(os.environ.get("LOCAL_RANK", args.local_rank if args.local_rank is not None else 0))
     
@@ -618,6 +634,7 @@ def main(args):
     # Speed optimization settings
     val_frequency = cfg.get("training", {}).get("val_frequency", 1)
     save_frequency = cfg.get("training", {}).get("save_frequency", 1)
+    checkpoint_schedule = cfg.get("training", {}).get("checkpoint_schedule", None)
     disable_progress_bar = cfg.get("training", {}).get("disable_progress_bar", False)
 
     # Gradient flow logging
@@ -655,7 +672,10 @@ def main(args):
         )
 
         # Validation - only run every N epochs + last epoch
-        should_validate = (epoch + 1) % val_frequency == 0 or (epoch + 1) == epochs
+        if checkpoint_schedule:
+            should_validate = _should_checkpoint(epoch + 1, checkpoint_schedule, epochs)
+        else:
+            should_validate = (epoch + 1) % val_frequency == 0 or (epoch + 1) == epochs
         if should_validate and dist_manager.is_main_process:
             val_metrics = validate(
                 model, val_loader, criterion, device,
@@ -672,8 +692,9 @@ def main(args):
                     model, ood_loaders, device,
                     use_amp=use_amp,
                     use_channels_last=use_channels_last,
-                    gpu_transforms=gpu_val_transforms,
+                    gpu_transforms=None,  # OOD loaders already normalize in CPU transform
                     save_predictions=ood_cfg.get("save_predictions", False),
+                    bn_adapt=ood_cfg.get("bn_adapt", False),
                 )
 
                 # Separate predictions from metrics
@@ -744,7 +765,10 @@ def main(args):
             )
 
             # Save checkpoints periodically + always save best
-            should_save = (epoch + 1) % save_frequency == 0 or (epoch + 1) == epochs
+            if checkpoint_schedule:
+                should_save = should_validate  # schedule drives both val and saves
+            else:
+                should_save = (epoch + 1) % save_frequency == 0 or (epoch + 1) == epochs
 
             # Check for best accuracy only when we validate
             if should_validate:
@@ -773,6 +797,14 @@ def main(args):
                     os.path.join(run_dir, "last.pt"), scaler, history,
                     is_distributed=dist_manager.is_distributed
                 )
+                # When using a checkpoint schedule, also save a named per-epoch
+                # checkpoint so every snapshot is preserved for post-hoc OOD analysis
+                if checkpoint_schedule:
+                    save_checkpoint(
+                        model, optimizer, scheduler, epoch, best_acc, cfg,
+                        os.path.join(run_dir, f"epoch_{epoch+1:03d}.pt"), scaler, history,
+                        is_distributed=dist_manager.is_distributed
+                    )
     
     if dist_manager.is_main_process:
         logger.info(f"Training complete! Best accuracy: {best_acc:.2f}%")

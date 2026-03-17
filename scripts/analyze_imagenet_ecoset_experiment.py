@@ -29,13 +29,14 @@ import numpy as np
 # Constants
 # ---------------------------------------------------------------------------
 
-NORMS = ["batchnorm", "layernorm", "groupnorm", "rmsnorm", "derf"]
+NORMS = ["batchnorm", "layernorm", "groupnorm", "rmsnorm", "derf", "localnorm"]
 NORM_LABELS = {
     "batchnorm": "BatchNorm",
     "layernorm": "LayerNorm",
     "groupnorm": "GroupNorm",
     "rmsnorm":   "RMSNorm",
     "derf":      "Derf",
+    "localnorm": "LocalNorm",
 }
 NORM_COLORS = {
     "batchnorm": "#1f77b4",
@@ -43,6 +44,7 @@ NORM_COLORS = {
     "groupnorm": "#2ca02c",
     "rmsnorm":   "#d62728",
     "derf":      "#9467bd",
+    "localnorm": "#8c564b",
 }
 NORM_STYLES = {
     "batchnorm": "-",
@@ -50,7 +52,10 @@ NORM_STYLES = {
     "groupnorm": "-.",
     "rmsnorm":   ":",
     "derf":      (0, (3, 1, 1, 1)),  # dashdot dense
+    "localnorm": (0, (5, 2)),         # long dash
 }
+
+SEEDS = [42, 43, 44, 45, 46]
 
 ARCHS = ["resnet50", "convnext_small", "vit_small"]
 ARCH_LABELS = {
@@ -85,12 +90,28 @@ def load_history(path):
     return data if data["epoch"] else None
 
 
+def average_histories(histories):
+    """Average a list of history dicts element-wise."""
+    if not histories:
+        return None
+    # Use shortest length in case seeds have different epoch counts
+    min_len = min(len(h["epoch"]) for h in histories)
+    keys = [k for k in histories[0] if k != "epoch"]
+    avg = {"epoch": histories[0]["epoch"][:min_len]}
+    for k in keys:
+        avg[k] = [
+            float(np.mean([h[k][i] for h in histories]))
+            for i in range(min_len)
+        ]
+    return avg
+
+
 def load_all(log_dir):
     """Load all no-augment and ecovalid run histories.
 
     Returns:
-        noaug: dict[(arch, norm)] -> history
-        ecovalid: dict[norm] -> history   (ResNet-50 ecovalid only)
+        noaug: dict[(arch, norm)] -> history   (empty if no single-run logs exist)
+        ecovalid: dict[norm] -> history         (seed-averaged ResNet-50 ecovalid)
     """
     noaug = {}
     for arch in ARCHS:
@@ -100,18 +121,29 @@ def load_all(log_dir):
             h = load_history(path)
             if h:
                 noaug[(arch, norm)] = h
-            else:
-                print(f"  [missing] {exp}")
 
     ecovalid = {}
     for norm in NORMS:
-        exp = f"resnet50_{norm}_imagenet_ecoset_ecovalid"
-        path = os.path.join(log_dir, exp, "history.csv")
-        h = load_history(path)
-        if h:
-            ecovalid[norm] = h
+        # Try seed-averaged runs first
+        seed_histories = []
+        for seed in SEEDS:
+            exp = f"resnet50_{norm}_imagenet_ecoset_ecovalid_seed{seed}"
+            path = os.path.join(log_dir, exp, "history.csv")
+            h = load_history(path)
+            if h:
+                seed_histories.append(h)
+        if seed_histories:
+            ecovalid[norm] = average_histories(seed_histories)
+            print(f"  Loaded {len(seed_histories)} seeds for ecovalid/{norm}")
         else:
-            print(f"  [missing/incomplete] {exp}")
+            # Fall back to single non-seeded run
+            exp = f"resnet50_{norm}_imagenet_ecoset_ecovalid"
+            path = os.path.join(log_dir, exp, "history.csv")
+            h = load_history(path)
+            if h:
+                ecovalid[norm] = h
+            else:
+                print(f"  [missing/incomplete] ecovalid/{norm}")
 
     return noaug, ecovalid
 
@@ -129,17 +161,9 @@ def load_ood_history(log_dir):
     ood_pat   = re.compile(r"OOD accuracies: (.+)$")
     val_kv    = re.compile(r"([\w_]+): ([\d.]+)%")
 
-    histories = {}
-    for norm in NORMS:
-        log_path = os.path.join(
-            log_dir, f"resnet50_{norm}_imagenet_ecoset_ecovalid", "train.log"
-        )
-        if not os.path.exists(log_path):
-            continue
-
+    def _parse_log(log_path):
         data = {"epoch": []}
         current_epoch = None
-
         with open(log_path) as f:
             for line in f:
                 em = epoch_pat.search(line)
@@ -150,10 +174,31 @@ def load_ood_history(log_dir):
                     data["epoch"].append(current_epoch)
                     for k, v in val_kv.findall(om.group(1)):
                         data.setdefault(k, []).append(float(v))
-                    current_epoch = None  # consume
+                    current_epoch = None
+        return data if data["epoch"] else None
 
-        if data["epoch"]:
-            histories[norm] = data
+    histories = {}
+    for norm in NORMS:
+        seed_datas = []
+        for seed in SEEDS:
+            log_path = os.path.join(
+                log_dir, f"resnet50_{norm}_imagenet_ecoset_ecovalid_seed{seed}", "train.log"
+            )
+            if os.path.exists(log_path):
+                d = _parse_log(log_path)
+                if d:
+                    seed_datas.append(d)
+        if seed_datas:
+            histories[norm] = average_histories(seed_datas)
+        else:
+            # Fall back to single run
+            log_path = os.path.join(
+                log_dir, f"resnet50_{norm}_imagenet_ecoset_ecovalid", "train.log"
+            )
+            if os.path.exists(log_path):
+                d = _parse_log(log_path)
+                if d:
+                    histories[norm] = d
 
     return histories
 
@@ -735,43 +780,38 @@ def plot_overfitting(noaug, output_dir):
 # 8. OOD analysis from ecovalid train logs
 # ---------------------------------------------------------------------------
 
-# OOD results at final epoch (epoch 50) from ecovalid train logs
-# Source: grep "OOD accuracies" logs/resnet50_*_imagenet_ecoset_ecovalid/train.log
+# OOD results at final epoch — seed-averaged across seeds 42-46
+# Source: logs/resnet50_*_imagenet_ecoset_ecovalid_seed*/train.log (last OOD line per seed)
 _ECOVALID_OOD = {
     "batchnorm": {
-        "imagenet_r": 4.6, "imagenet_sketch": 7.1, "imagenet_a": 1.0,
-        "imagenet_c_contrast": 40.1, "imagenet_c_blur": 6.2,
-        "imagenet_c_fog": 21.0, "imagenet_c_noise": 8.8,
+        "imagenet_c_contrast": 35.5, "imagenet_c_blur": 27.3,
+        "imagenet_c_fog": 32.9, "imagenet_c_noise": 30.8,
     },
     "layernorm": {
-        "imagenet_r": 15.3, "imagenet_sketch": 17.7, "imagenet_a": 3.5,
-        "imagenet_c_contrast": 53.3, "imagenet_c_blur": 48.5,
-        "imagenet_c_fog": 28.3, "imagenet_c_noise": 23.4,
+        "imagenet_c_contrast": 30.7, "imagenet_c_blur": 27.6,
+        "imagenet_c_fog": 19.2, "imagenet_c_noise": 15.2,
     },
     "groupnorm": {
-        "imagenet_r": 18.7, "imagenet_sketch": 25.7, "imagenet_a": 4.6,
-        "imagenet_c_contrast": 64.8, "imagenet_c_blur": 51.2,
-        "imagenet_c_fog": 43.8, "imagenet_c_noise": 30.4,
+        "imagenet_c_contrast": 28.8, "imagenet_c_blur": 23.7,
+        "imagenet_c_fog": 17.0, "imagenet_c_noise": 14.0,
     },
     "rmsnorm": {
-        "imagenet_r": 17.6, "imagenet_sketch": 21.9, "imagenet_a": 3.7,
-        "imagenet_c_contrast": 58.2, "imagenet_c_blur": 49.7,
-        "imagenet_c_fog": 41.8, "imagenet_c_noise": 29.5,
+        "imagenet_c_contrast": 26.4, "imagenet_c_blur": 26.0,
+        "imagenet_c_fog": 19.2, "imagenet_c_noise": 13.9,
     },
     "derf": {
-        "imagenet_r": 2.7, "imagenet_sketch": 0.7, "imagenet_a": 4.2,
-        "imagenet_c_contrast": 0.7, "imagenet_c_blur": 0.7,
-        "imagenet_c_fog": 0.7, "imagenet_c_noise": 0.7,
+        "imagenet_c_contrast": 12.8, "imagenet_c_blur": 15.5,
+        "imagenet_c_fog": 5.1, "imagenet_c_noise": 12.9,
+    },
+    "localnorm": {
+        "imagenet_c_contrast": 19.0, "imagenet_c_blur": 17.1,
+        "imagenet_c_fog": 25.5, "imagenet_c_noise": 16.5,
     },
 }
 
-OOD_DATASETS = ["imagenet_r", "imagenet_sketch", "imagenet_a",
-                 "imagenet_c_noise", "imagenet_c_blur",
-                 "imagenet_c_fog", "imagenet_c_contrast"]
+OOD_DATASETS = ["imagenet_c_contrast", "imagenet_c_blur",
+                 "imagenet_c_fog", "imagenet_c_noise"]
 OOD_LABELS = {
-    "imagenet_r": "IN-R",
-    "imagenet_sketch": "IN-Sketch",
-    "imagenet_a": "IN-A",
     "imagenet_c_noise": "C-Noise",
     "imagenet_c_blur": "C-Blur",
     "imagenet_c_fog": "C-Fog",
@@ -809,8 +849,7 @@ def plot_ood_analysis(ecovalid, output_dir):
 
     # ---- Panel 2: In-distribution vs OOD mean scatter ----
     ax = axes[1]
-    ood_mean_datasets = ["imagenet_r", "imagenet_sketch", "imagenet_a",
-                         "imagenet_c_noise", "imagenet_c_blur", "imagenet_c_fog", "imagenet_c_contrast"]
+    ood_mean_datasets = OOD_DATASETS
     for norm in NORMS:
         id_acc = best_val(ecovalid.get(norm)) or 0
         ood_mean = np.mean([ood[norm][ds] for ds in ood_mean_datasets])
@@ -842,18 +881,12 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
 
     # Datasets logged during training (key as they appear in train.log)
     logged_datasets = [
-        "imagenet_r",
-        "imagenet_sketch",
-        "imagenet_a",
-        "imagenet_c_gaussian_noise_s3",
+        "imagenet_c_contrast_s3",
         "imagenet_c_defocus_blur_s3",
         "imagenet_c_fog_s3",
-        "imagenet_c_contrast_s3",
+        "imagenet_c_gaussian_noise_s3",
     ]
     ds_labels = {
-        "imagenet_r":                  "ImageNet-R",
-        "imagenet_sketch":             "ImageNet-Sketch",
-        "imagenet_a":                  "ImageNet-A",
         "imagenet_c_gaussian_noise_s3": "C-Noise (s3)",
         "imagenet_c_defocus_blur_s3":  "C-Blur (s3)",
         "imagenet_c_fog_s3":           "C-Fog (s3)",
@@ -861,10 +894,10 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
     }
 
     n_ds = len(logged_datasets)
-    ncols = 4
-    nrows = -(-n_ds // ncols)  # ceil division → 2 rows
+    ncols = 3
+    nrows = -(-( n_ds + 1) // ncols)  # +1 for the ID val accuracy slot
 
-    fig, axes = plt.subplots(nrows, ncols, figsize=(16, 7))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(15, 5 * nrows))
     fig.suptitle(
         "OOD Accuracy over Training — ResNet-50, Eco-Valid Augmentations",
         fontsize=13, fontweight="bold",
@@ -945,10 +978,10 @@ def print_ood_table():
 
     print()
     id_accs = {norm: best_val(None) for norm in NORMS}  # placeholder
-    print("Key finding: BatchNorm dominates ID accuracy but collapses on OOD.")
-    print("GroupNorm/RMSNorm show best OOD robustness across all corruption types.")
-    print(f"BatchNorm vs GroupNorm on C-Blur: {ood['batchnorm']['imagenet_c_blur']:.1f}% vs {ood['groupnorm']['imagenet_c_blur']:.1f}% ({ood['groupnorm']['imagenet_c_blur']/ood['batchnorm']['imagenet_c_blur']:.1f}x improvement)")
-    print(f"BatchNorm vs GroupNorm on C-Noise: {ood['batchnorm']['imagenet_c_noise']:.1f}% vs {ood['groupnorm']['imagenet_c_noise']:.1f}% ({ood['groupnorm']['imagenet_c_noise']/ood['batchnorm']['imagenet_c_noise']:.1f}x improvement)")
+    print("Note: Only 4 C-corruption datasets logged during training (no IN-R/Sketch/A).")
+    bn = ood["batchnorm"]; gn = ood["groupnorm"]
+    print(f"BatchNorm vs GroupNorm on C-Blur: {bn['imagenet_c_blur']:.1f}% vs {gn['imagenet_c_blur']:.1f}%")
+    print(f"BatchNorm vs GroupNorm on C-Noise: {bn['imagenet_c_noise']:.1f}% vs {gn['imagenet_c_noise']:.1f}%")
     print()
 
 
