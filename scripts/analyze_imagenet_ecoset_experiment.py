@@ -1422,6 +1422,178 @@ def print_ood_table(ood_final):
 
 
 # ---------------------------------------------------------------------------
+# 9. LocalNorm K-sweep analysis
+# ---------------------------------------------------------------------------
+
+# K_VARIANTS: norm key names used in run directories (K=2 reuses the existing 'localnorm' runs)
+K_VARIANTS = ["localnorm_k1", "localnorm", "localnorm_k4", "localnorm_k8", "localnorm_k16"]
+K_VALUES   = [1, 2, 4, 8, 16]
+
+
+def load_ksweep_data(log_dir):
+    """Load history and OOD results for LocalNorm K variants (seed-averaged).
+
+    Returns:
+        histories: dict[norm_key] -> (mean_history, std_history)
+        ood_data:  dict[norm_key] -> dict[metric -> (mean, std)]
+    """
+    import json
+
+    histories = {}
+    ood_data  = {}
+
+    for norm_key in K_VARIANTS:
+        seed_histories = []
+        seed_oods = []
+        for seed in SEEDS:
+            exp = f"resnet50_{norm_key}_imagenet_ecoset_ecovalid_seed{seed}"
+            h = load_history(os.path.join(log_dir, exp, "history.csv"))
+            if h:
+                seed_histories.append(h)
+            ood_path = os.path.join(log_dir, exp, "ood_results.json")
+            if os.path.exists(ood_path):
+                with open(ood_path) as f:
+                    seed_oods.append(json.load(f))
+
+        if seed_histories:
+            mean_h, std_h = mean_std_histories(seed_histories)
+            histories[norm_key] = (mean_h, std_h)
+        if seed_oods:
+            all_keys = set().union(*[set(d.keys()) for d in seed_oods])
+            ood_data[norm_key] = {
+                k: (
+                    float(np.mean([d[k] for d in seed_oods if k in d])),
+                    float(np.std( [d[k] for d in seed_oods if k in d])),
+                )
+                for k in all_keys
+            }
+
+    return histories, ood_data
+
+
+def plot_ksweep(ksweep_histories, ksweep_ood, output_dir):
+    """Plot LocalNorm K-sweep: ID val accuracy and OOD metrics vs K."""
+    if not ksweep_histories:
+        print("  Skipping K-sweep plot (no data yet)")
+        return
+
+    set_style()
+
+    ood_metrics = [
+        ("ood/imagenet_r/acc",      "ImageNet-R",  "#e377c2"),
+        ("ood/imagenet_sketch/acc", "Sketch",       "#17becf"),
+        ("ood/imagenet_a/acc",      "ImageNet-A",   "#bcbd22"),
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle(
+        "LocalNorm K Sweep — ResNet-50, Eco-Valid (5 seeds, mean ± std)",
+        fontsize=13, fontweight="bold",
+    )
+
+    # ---- Panel 1: Best val accuracy vs K ----
+    ax = axes[0]
+    k_plot, id_means, id_stds = [], [], []
+    for norm_key, k_val in zip(K_VARIANTS, K_VALUES):
+        mean_h, std_h = ksweep_histories.get(norm_key, (None, None))
+        if mean_h is None or not mean_h.get("val_acc"):
+            continue
+        bv = best_val(mean_h)
+        best_ep_idx = int(np.argmax(mean_h["val_acc"]))
+        bv_std = (std_h["val_acc"][best_ep_idx]
+                  if std_h and "val_acc" in std_h and best_ep_idx < len(std_h["val_acc"])
+                  else 0.0)
+        k_plot.append(k_val)
+        id_means.append(bv)
+        id_stds.append(bv_std)
+
+    if k_plot:
+        ax.errorbar(k_plot, id_means, yerr=id_stds, fmt="o-",
+                    color="#1f77b4", linewidth=2, markersize=8, capsize=4,
+                    label="LocalNorm (mean ± std)")
+        if len(set(k_plot)) > 1:
+            ax.set_xscale("log", base=2)
+            ax.set_xticks(K_VALUES)
+            ax.set_xticklabels([str(k) for k in K_VALUES])
+    else:
+        ax.text(0.5, 0.5, "No training data yet", ha="center", va="center",
+                transform=ax.transAxes, fontsize=10, color="gray")
+    ax.set_xlabel("K (number of batch groups)")
+    ax.set_ylabel("Best Val Accuracy (%)")
+    ax.set_title("ID Accuracy vs K")
+    ax.legend(fontsize=9)
+
+    # ---- Panel 2: OOD metrics vs K ----
+    ax = axes[1]
+    has_ood = False
+    for ood_key, ood_label, col in ood_metrics:
+        k_ood, oo_means, oo_stds = [], [], []
+        for norm_key, k_val in zip(K_VARIANTS, K_VALUES):
+            entry = ksweep_ood.get(norm_key, {}).get(ood_key)
+            if entry is not None:
+                k_ood.append(k_val)
+                oo_means.append(entry[0])
+                oo_stds.append(entry[1])
+        if k_ood:
+            ax.errorbar(k_ood, oo_means, yerr=oo_stds, fmt="o-",
+                        color=col, linewidth=2, markersize=8, capsize=4, label=ood_label)
+            has_ood = True
+
+    if has_ood:
+        if len(set(k_plot)) > 1:
+            ax.set_xscale("log", base=2)
+            ax.set_xticks(K_VALUES)
+            ax.set_xticklabels([str(k) for k in K_VALUES])
+        ax.legend(fontsize=9)
+    else:
+        ax.text(0.5, 0.5, "No OOD data yet\n(run submit_snellius_ood_eval.sh)",
+                ha="center", va="center", transform=ax.transAxes, fontsize=10, color="gray")
+    ax.set_xlabel("K (number of batch groups)")
+    ax.set_ylabel("OOD Accuracy (%)")
+    ax.set_title("OOD Accuracy vs K")
+
+    plt.tight_layout()
+    out = os.path.join(output_dir, "localnorm_k_sweep.png")
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {out}")
+
+
+def print_ksweep_table(ksweep_histories, ksweep_ood):
+    """Print K-sweep summary table to stdout."""
+    import json
+
+    ood_keys = [
+        ("ood/imagenet_r/acc",      "IN-R"),
+        ("ood/imagenet_sketch/acc", "Sketch"),
+        ("ood/imagenet_a/acc",      "IN-A"),
+    ]
+
+    print("\n" + "=" * 75)
+    print("LocalNorm K-SWEEP — ResNet-50, Eco-Valid (5-seed mean ± std)")
+    print("=" * 75)
+    header = f"{'K':<6}{'Best Val Acc':>16}" + "".join(f"{lbl:>12}" for _, lbl in ood_keys)
+    print(header)
+    print("-" * len(header))
+    for norm_key, k_val in zip(K_VARIANTS, K_VALUES):
+        mean_h, std_h = ksweep_histories.get(norm_key, (None, None))
+        if mean_h is None:
+            print(f"K={k_val:<4}{'—':>16}")
+            continue
+        bv = best_val(mean_h)
+        best_ep_idx = int(np.argmax(mean_h["val_acc"]))
+        bv_std = (std_h["val_acc"][best_ep_idx]
+                  if std_h and "val_acc" in std_h and best_ep_idx < len(std_h["val_acc"])
+                  else 0.0)
+        row = f"K={k_val:<4}{bv:>13.2f}%±{bv_std:.1f}"
+        for ood_key, _ in ood_keys:
+            entry = ksweep_ood.get(norm_key, {}).get(ood_key)
+            row += f"{entry[0]:>10.1f}%" if entry else f"{'—':>12}"
+        print(row)
+    print()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1475,6 +1647,15 @@ def main():
     plot_ood_evolution(ood_histories, ood_histories_std, ecovalid, ecovalid_std, output_dir)
     plot_id_ood_trajectory(ecovalid, ood_histories, ood_histories_std, output_dir)
     plot_robustness_ratio(ecovalid, ood_histories, ood_histories_std, output_dir)
+
+    # LocalNorm K-sweep analysis
+    print("\nLoading LocalNorm K-sweep data...")
+    ksweep_histories, ksweep_ood = load_ksweep_data(log_dir)
+    n_ksweep = sum(1 for k in K_VARIANTS if k in ksweep_histories)
+    print(f"  Loaded {n_ksweep}/{len(K_VARIANTS)} K variants")
+    if ksweep_histories:
+        print_ksweep_table(ksweep_histories, ksweep_ood)
+        plot_ksweep(ksweep_histories, ksweep_ood, output_dir)
 
     print(f"\nAll outputs saved to: {output_dir}/")
 

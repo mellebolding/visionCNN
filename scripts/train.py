@@ -120,30 +120,50 @@ def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
 
 
 def build_scheduler(optimizer: torch.optim.Optimizer, cfg: dict):
-    """Build learning rate scheduler from config."""
+    """Build learning rate scheduler from config.
+
+    If training.warmup_epochs > 0, prepends a linear warmup phase that scales
+    LR from ~0 up to the configured lr over that many epochs, then hands off
+    to the main scheduler for the remaining epochs.
+    """
     scheduler_name = cfg.get("training", {}).get("scheduler", "cosine").lower()
     epochs = cfg["training"]["epochs"]
-    
-    if scheduler_name == "cosine":
-        min_lr = cfg["training"].get("min_lr", 1e-6)
-        # Handle case where min_lr might be a string
-        if isinstance(min_lr, str):
-            min_lr = float(min_lr)
-        return torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=epochs, eta_min=min_lr
+    warmup_epochs = cfg.get("training", {}).get("warmup_epochs", 0)
+
+    def _main_scheduler(remaining_epochs):
+        if scheduler_name == "cosine":
+            min_lr = cfg["training"].get("min_lr", 1e-6)
+            if isinstance(min_lr, str):
+                min_lr = float(min_lr)
+            return torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=max(1, remaining_epochs), eta_min=min_lr
+            )
+        elif scheduler_name == "step":
+            step_size = cfg["training"].get("step_size", 30)
+            gamma = cfg["training"].get("gamma", 0.1)
+            return torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+        elif scheduler_name == "multistep":
+            milestones = cfg["training"].get("milestones", [60, 80])
+            gamma = cfg["training"].get("gamma", 0.1)
+            return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
+        elif scheduler_name == "none":
+            return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda _: 1.0)
+        else:
+            raise ValueError(f"Unknown scheduler: {scheduler_name}")
+
+    if warmup_epochs > 0:
+        warmup = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=1e-6, end_factor=1.0, total_iters=warmup_epochs
         )
-    elif scheduler_name == "step":
-        step_size = cfg["training"].get("step_size", 30)
-        gamma = cfg["training"].get("gamma", 0.1)
-        return torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-    elif scheduler_name == "multistep":
-        milestones = cfg["training"].get("milestones", [60, 80])
-        gamma = cfg["training"].get("gamma", 0.1)
-        return torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
-    elif scheduler_name == "none":
+        main = _main_scheduler(epochs - warmup_epochs)
+        return torch.optim.lr_scheduler.SequentialLR(
+            optimizer, schedulers=[warmup, main], milestones=[warmup_epochs]
+        )
+
+    main = _main_scheduler(epochs)
+    if scheduler_name == "none":
         return None
-    else:
-        raise ValueError(f"Unknown scheduler: {scheduler_name}")
+    return main
 
 
 def collect_gradient_norms(model):

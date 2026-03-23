@@ -373,9 +373,17 @@ def get_norm_layer(name: str):
         return Derf2dVP
     elif name == "localnorm":
         return partial(LocalNorm2d, K=2)
+    elif name == "localnorm_k1":
+        return partial(LocalNorm2d, K=1)
+    elif name == "localnorm_k4":
+        return partial(LocalNorm2d, K=4)
+    elif name == "localnorm_k8":
+        return partial(LocalNorm2d, K=8)
+    elif name == "localnorm_k16":
+        return partial(LocalNorm2d, K=16)
     elif name in ("nonorm", "nonorm_ws"):
         return NoNorm
     else:
         raise ValueError(
-            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, localnorm, nonorm, nonorm_ws"
+            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, localnorm, localnorm_k1, localnorm_k4, localnorm_k8, localnorm_k16, nonorm, nonorm_ws"
         )

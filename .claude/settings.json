@@ -43,7 +43,18 @@
       "Bash(ls logs/slurm/*ood*.out)",
       "Bash(ls logs/slurm/20817*_ood_*.err)",
       "Bash(scancel 20885601 20885602 20885603 20885604 20885605 20885606 20885607 20885608 20885609 20885610 20885611 20885612 20885613 20885614 20885616 20885617 20885619 20885620 20885621 20885622 20885623 20885624 20885625 20885626 20885627 20885628 20885629 20885630 20885631)",
-      "Bash(ls logs/slurm/*20885600*)"
+      "Bash(ls logs/slurm/*20885600*)",
+      "Bash(find /gpfs/home1/mbolding/visionCNN/logs -type d -name *ecovalid*)",
+      "Bash(find /projects/prjs0771/melle/projects/visionCNN/logs -type d -name *ecovalid*5seed*)",
+      "Bash(for dir:*)",
+      "Bash(do echo:*)",
+      "Read(//gpfs/home1/mbolding/visionCNN/$dir/**)",
+      "Bash(file /gpfs/home1/mbolding/visionCNN/results/imagenet_ecoset_ecovalid_5seed/*.png)",
+      "Bash(find /gpfs/home1/mbolding/visionCNN -type f \\\\\\(-name *.csv -o -name *.pkl -o -name *.npz \\\\\\) ! -path */.* ! -path */wandb/*)",
+      "Bash(python3:*)",
+      "Bash(find /projects/prjs0771/melle/projects/visionCNN/logs -type d -name *derf*)",
+      "Bash(ls -lh /projects/prjs0771/melle/projects/visionCNN/logs/resnet50_derf_imagenet_ecoset_ecovalid_seed*/history.csv)",
+      "Bash(find /gpfs/home1/mbolding/visionCNN -name *.yaml -path */derf* -o -name derf*.yaml)"
     ],
     "additionalDirectories": [
       "/gpfs/home1/mbolding/visionCNN/logs"
