@@ -108,12 +108,31 @@ def average_histories(histories):
     return avg
 
 
+def mean_std_histories(histories):
+    """Return (mean_history, std_history) from a list of seed histories."""
+    if not histories:
+        return None, None
+    min_len = min(len(h["epoch"]) for h in histories)
+    keys = [k for k in histories[0] if k != "epoch"]
+    mean_h = {"epoch": histories[0]["epoch"][:min_len]}
+    std_h  = {"epoch": histories[0]["epoch"][:min_len]}
+    for k in keys:
+        k_len = min(len(h.get(k, [])) for h in histories)
+        use_len = min(min_len, k_len)
+        for i in range(use_len):
+            vals = [h[k][i] for h in histories if k in h and len(h[k]) > i]
+            mean_h.setdefault(k, []).append(float(np.mean(vals)))
+            std_h.setdefault(k, []).append(float(np.std(vals)))
+    return mean_h, std_h
+
+
 def load_all(log_dir):
     """Load all no-augment and ecovalid run histories.
 
     Returns:
         noaug: dict[(arch, norm)] -> history   (empty if no single-run logs exist)
         ecovalid: dict[norm] -> history         (seed-averaged ResNet-50 ecovalid)
+        ecovalid_std: dict[norm] -> std_history  (per-epoch std across seeds)
     """
     noaug = {}
     for arch in ARCHS:
@@ -125,6 +144,7 @@ def load_all(log_dir):
                 noaug[(arch, norm)] = h
 
     ecovalid = {}
+    ecovalid_std = {}
     for norm in NORMS:
         # Try seed-averaged runs first
         seed_histories = []
@@ -135,7 +155,9 @@ def load_all(log_dir):
             if h:
                 seed_histories.append(h)
         if seed_histories:
-            ecovalid[norm] = average_histories(seed_histories)
+            mean_h, std_h = mean_std_histories(seed_histories)
+            ecovalid[norm] = mean_h
+            ecovalid_std[norm] = std_h
             print(f"  Loaded {len(seed_histories)} seeds for ecovalid/{norm}")
         else:
             # Fall back to single non-seeded run
@@ -147,7 +169,7 @@ def load_all(log_dir):
             else:
                 print(f"  [missing/incomplete] ecovalid/{norm}")
 
-    return noaug, ecovalid
+    return noaug, ecovalid, ecovalid_std
 
 
 def load_ood_history(log_dir):
@@ -164,7 +186,9 @@ def load_ood_history(log_dir):
     val_kv    = re.compile(r"([\w_]+): ([\d.]+)%")
 
     def _parse_log(log_path):
-        data = {"epoch": []}
+        # Collect all (epoch, ood_dict) pairs, then keep only the LAST
+        # occurrence of each epoch (handles crash + resume logs).
+        entries = []
         current_epoch = None
         with open(log_path) as f:
             for line in f:
@@ -173,13 +197,28 @@ def load_ood_history(log_dir):
                     current_epoch = int(em.group(1))
                 om = ood_pat.search(line)
                 if om and current_epoch is not None:
-                    data["epoch"].append(current_epoch)
-                    for k, v in val_kv.findall(om.group(1)):
-                        data.setdefault(k, []).append(float(v))
+                    kvs = {k: float(v) for k, v in val_kv.findall(om.group(1))}
+                    entries.append((current_epoch, kvs))
                     current_epoch = None
+
+        if not entries:
+            return None
+
+        # Keep only the last entry for each epoch (from the final run)
+        last_by_epoch = {}
+        for ep, kvs in entries:
+            last_by_epoch[ep] = kvs
+
+        data = {"epoch": []}
+        for ep in sorted(last_by_epoch):
+            data["epoch"].append(ep)
+            for k, v in last_by_epoch[ep].items():
+                data.setdefault(k, []).append(v)
+
         return data if data["epoch"] else None
 
     histories = {}
+    histories_std = {}
     for norm in NORMS:
         seed_datas = []
         for seed in SEEDS:
@@ -191,7 +230,9 @@ def load_ood_history(log_dir):
                 if d:
                     seed_datas.append(d)
         if seed_datas:
-            histories[norm] = average_histories(seed_datas)
+            mean_h, std_h = mean_std_histories(seed_datas)
+            histories[norm] = mean_h
+            histories_std[norm] = std_h
         else:
             # Fall back to single run
             log_path = os.path.join(
@@ -202,7 +243,7 @@ def load_ood_history(log_dir):
                 if d:
                     histories[norm] = d
 
-    return histories
+    return histories, histories_std
 
 
 def load_ood_final(log_dir):
@@ -735,6 +776,274 @@ def plot_augmentation_comparison(noaug, ecovalid, output_dir):
 
 
 # ---------------------------------------------------------------------------
+# 5b. Ecovalid training progression with confidence bands
+# ---------------------------------------------------------------------------
+
+def plot_ecovalid_progression(ecovalid, ecovalid_std, output_dir):
+    """Training progression for ecovalid runs with mean ± std bands."""
+    set_style()
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig.suptitle(
+        "Training Progression — ResNet-50, Eco-Valid (5 seeds, mean ± 1 std)",
+        fontsize=13, fontweight="bold",
+    )
+
+    panels = [
+        ("val_acc", "Val Accuracy (%)", "Validation Accuracy"),
+        ("train_loss", "Loss", "Training Loss"),
+        ("val_loss", "Loss", "Validation Loss"),
+    ]
+
+    for ax, (key, ylabel, title) in zip(axes, panels):
+        for norm in NORMS:
+            h = ecovalid.get(norm)
+            s = ecovalid_std.get(norm)
+            if h is None or key not in h:
+                continue
+            if key == "val_acc" and best_val(h) is not None and best_val(h) < 2.0:
+                continue
+            epochs = np.array(h["epoch"][:len(h[key])])
+            mean = np.array(h[key])
+            c = NORM_COLORS[norm]
+            ls = NORM_STYLES[norm]
+            ax.plot(epochs, mean, color=c, linestyle=ls, linewidth=1.8,
+                    label=NORM_LABELS[norm])
+            if s and key in s:
+                std = np.array(s[key][:len(mean)])
+                ax.fill_between(epochs, mean - std, mean + std,
+                                color=c, alpha=0.15)
+
+        if key == "val_acc":
+            ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend(fontsize=8)
+
+    plt.tight_layout()
+    out = os.path.join(output_dir, "ecovalid_progression.png")
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {out}")
+
+
+# ---------------------------------------------------------------------------
+# 5c. ID vs OOD trajectory during training
+# ---------------------------------------------------------------------------
+
+def _smooth(arr, window=3):
+    """Simple moving average for smoothing noisy trajectories."""
+    if len(arr) < window:
+        return arr
+    kernel = np.ones(window) / window
+    # Pad edges to preserve length
+    padded = np.concatenate([arr[:1]] * (window // 2) + [arr] + [arr[-1:]] * (window // 2))
+    return np.convolve(padded, kernel, mode="valid")[:len(arr)]
+
+
+def plot_id_ood_trajectory(ecovalid, ood_histories, ood_histories_std, output_dir):
+    """Parametric trajectory: x=ID val acc, y=OOD acc, over training epochs.
+
+    Shows how OOD robustness tracks (or diverges from) ID accuracy.
+    Only uses C-corruption data (available at all epochs) to avoid
+    discontinuities when standard OOD datasets appear partway through.
+    """
+    if not ood_histories:
+        print("  Skipping ID-OOD trajectory (no OOD history data)")
+        return
+
+    set_style()
+
+    c_keys = [
+        "imagenet_c_gaussian_noise_s3", "imagenet_c_defocus_blur_s3",
+        "imagenet_c_fog_s3", "imagenet_c_contrast_s3",
+    ]
+    # Standard OOD only available from mid-training; separate panel
+    std_ood_keys = ["imagenet_r", "imagenet_a", "imagenet_sketch"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig.suptitle(
+        "ID vs OOD Trajectory During Training — ResNet-50, Eco-Valid (5 seeds)",
+        fontsize=13, fontweight="bold",
+    )
+
+    for ax, (ds_keys, ds_label, smooth_w) in zip(axes, [
+        (c_keys, "Mean ImageNet-C (sev=3)", 5),
+        (std_ood_keys, "Mean Standard OOD (R + A + Sketch)", 3),
+    ]):
+        for norm in NORMS:
+            h_ood = ood_histories.get(norm)
+            h_id  = ecovalid.get(norm)
+            if h_ood is None or h_id is None:
+                continue
+            if best_val(h_id) is not None and best_val(h_id) < 2.0:
+                continue
+
+            ood_epochs = h_ood["epoch"]
+            avail = [k for k in ds_keys if k in h_ood]
+            if not avail:
+                continue
+            min_ood_len = min(len(h_ood[k]) for k in avail)
+            ood_mean_raw = np.array([
+                np.mean([h_ood[k][i] for k in avail])
+                for i in range(min_ood_len)
+            ])
+            ood_ep = ood_epochs[:min_ood_len]
+
+            # Skip very early epochs where both ID and OOD are near chance
+            start_idx = 0
+            id_epochs = np.array(h_id["epoch"])
+            id_vals   = np.array(h_id["val_acc"])
+            id_at_ood_raw = np.array([
+                id_vals[np.argmin(np.abs(id_epochs - e))]
+                for e in ood_ep
+            ])
+            # Only start when ID > 5% (past initial noise)
+            for si in range(len(id_at_ood_raw)):
+                if id_at_ood_raw[si] > 5.0:
+                    start_idx = si
+                    break
+
+            id_at_ood = id_at_ood_raw[start_idx:]
+            ood_mean = ood_mean_raw[start_idx:]
+            if len(id_at_ood) < 3:
+                continue
+
+            # Smooth to reduce epoch-to-epoch noise
+            ood_smooth = _smooth(ood_mean, smooth_w)
+            id_smooth  = _smooth(id_at_ood, smooth_w)
+
+            c = NORM_COLORS[norm]
+            ax.plot(id_smooth, ood_smooth, color=c, linewidth=2.0,
+                    label=NORM_LABELS[norm], zorder=3)
+            # Start marker (circle) and end marker (star)
+            ax.scatter(id_smooth[0], ood_smooth[0], color=c, s=50,
+                       marker="o", zorder=5, edgecolors="white", linewidth=0.8)
+            ax.scatter(id_smooth[-1], ood_smooth[-1], color=c, s=120,
+                       marker="*", zorder=5, edgecolors="white", linewidth=0.8)
+            # Label final point with norm name
+            ax.annotate(NORM_LABELS[norm],
+                        (id_smooth[-1], ood_smooth[-1]),
+                        textcoords="offset points", xytext=(6, 2),
+                        fontsize=8, color=c, fontweight="bold")
+
+        # Diagonal reference
+        ax.plot([0, 100], [0, 100], color="gray", linestyle=":", alpha=0.3, linewidth=1)
+        ax.set_xlabel("ID Val Accuracy (%)")
+        ax.set_ylabel(f"{ds_label} (%)")
+        ax.set_title(f"{ds_label}\n(o = start, * = end of training)")
+        ax.legend(fontsize=8, loc="upper left")
+
+    plt.tight_layout()
+    out = os.path.join(output_dir, "id_ood_trajectory.png")
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {out}")
+
+
+# ---------------------------------------------------------------------------
+# 5d. Relative robustness over training
+# ---------------------------------------------------------------------------
+
+def plot_robustness_ratio(ecovalid, ood_histories, ood_histories_std, output_dir):
+    """Plot OOD/ID ratio over training epochs — shows if robustness keeps pace.
+
+    Starts from epoch 5 (after initial warm-up noise) and uses the
+    robustness gap (ID - OOD) in percentage points, which is more
+    interpretable than the raw ratio.
+    """
+    if not ood_histories:
+        print("  Skipping robustness ratio (no OOD history data)")
+        return
+
+    set_style()
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig.suptitle(
+        "Robustness Gap Over Training — (ID Acc - OOD Acc) in pp",
+        fontsize=13, fontweight="bold",
+    )
+
+    c_keys = [
+        "imagenet_c_gaussian_noise_s3", "imagenet_c_defocus_blur_s3",
+        "imagenet_c_fog_s3", "imagenet_c_contrast_s3",
+    ]
+    std_ood_keys = ["imagenet_r", "imagenet_a", "imagenet_sketch"]
+    MIN_EPOCH = 4  # skip early chaos
+
+    for ax, (ds_keys, ds_label) in zip(axes, [
+        (c_keys, "ID - Mean C-Corruption"),
+        (std_ood_keys, "ID - Mean Standard OOD"),
+    ]):
+        for norm in NORMS:
+            h_ood = ood_histories.get(norm)
+            h_id  = ecovalid.get(norm)
+            if h_ood is None or h_id is None:
+                continue
+            if best_val(h_id) is not None and best_val(h_id) < 2.0:
+                continue
+
+            ood_epochs = h_ood["epoch"]
+            avail = [k for k in ds_keys if k in h_ood]
+            if not avail:
+                continue
+            min_ood_len = min(len(h_ood[k]) for k in avail)
+            ood_mean = np.array([
+                np.mean([h_ood[k][i] for k in avail])
+                for i in range(min_ood_len)
+            ])
+            ood_ep = np.array(ood_epochs[:min_ood_len])
+
+            id_epochs = np.array(h_id["epoch"])
+            id_vals   = np.array(h_id["val_acc"])
+            id_at_ood = np.array([
+                id_vals[np.argmin(np.abs(id_epochs - e))]
+                for e in ood_ep
+            ])
+
+            # Filter to epochs >= MIN_EPOCH
+            mask = ood_ep >= MIN_EPOCH
+            if mask.sum() < 2:
+                continue
+            gap = id_at_ood[mask] - ood_mean[mask]
+            gap_smooth = _smooth(gap, 3)
+
+            c  = NORM_COLORS[norm]
+            ls = NORM_STYLES[norm]
+            ax.plot(ood_ep[mask], gap_smooth, color=c, linestyle=ls,
+                    linewidth=1.8, label=NORM_LABELS[norm])
+
+            # Std band
+            s_ood = ood_histories_std.get(norm)
+            if s_ood:
+                avail_s = [k for k in ds_keys if k in s_ood]
+                if avail_s:
+                    min_s_len = min(len(s_ood[k]) for k in avail_s)
+                    use_len = min(min_ood_len, min_s_len)
+                    ood_std = np.array([
+                        np.mean([s_ood[k][i] for k in avail_s])
+                        for i in range(use_len)
+                    ])
+                    # Align with mask
+                    std_masked = ood_std[:len(ood_ep)][mask][:len(gap_smooth)]
+                    ax.fill_between(ood_ep[mask][:len(std_masked)],
+                                    gap_smooth[:len(std_masked)] - std_masked,
+                                    gap_smooth[:len(std_masked)] + std_masked,
+                                    color=c, alpha=0.1)
+
+        ax.axhline(0, color="black", linewidth=0.8, alpha=0.5)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Gap (pp): higher = more drop from ID to OOD")
+        ax.set_title(f"{ds_label}\n(lower gap = more robust)")
+        ax.legend(fontsize=8)
+
+    plt.tight_layout()
+    out = os.path.join(output_dir, "robustness_ratio.png")
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {out}")
+
+
+# ---------------------------------------------------------------------------
 # 6. Cross-norm ranking heatmap
 # ---------------------------------------------------------------------------
 
@@ -982,8 +1291,8 @@ def plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir):
     print(f"  Saved: {out}")
 
 
-def plot_ood_evolution(ood_histories, ecovalid, output_dir):
-    """Plot OOD metric evolution over training epochs for all ecovalid norms."""
+def plot_ood_evolution(ood_histories, ood_histories_std, ecovalid, ecovalid_std, output_dir):
+    """Plot OOD metric evolution over training epochs with mean ± std bands."""
     if not ood_histories:
         print("  Skipping OOD evolution plot (no data)")
         return
@@ -1016,7 +1325,7 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(15, 5 * nrows))
     fig.suptitle(
-        "OOD Accuracy over Training — ResNet-50, Eco-Valid Augmentations",
+        "OOD Accuracy over Training — ResNet-50, Eco-Valid (5 seeds, mean ± 1 std)",
         fontsize=13, fontweight="bold",
     )
     axes_flat = axes.flatten()
@@ -1025,14 +1334,19 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
         ax = axes_flat[idx]
         for norm in NORMS:
             h = ood_histories.get(norm)
+            s = ood_histories_std.get(norm)
             if h is None or ds_key not in h:
                 continue
-            vals   = h[ds_key]
-            epochs = h["epoch"][:len(vals)]
+            vals   = np.array(h[ds_key])
+            epochs = np.array(h["epoch"][:len(vals)])
             c  = NORM_COLORS[norm]
             ls = NORM_STYLES[norm]
             ax.plot(epochs, vals, color=c, linestyle=ls,
                     linewidth=1.6, label=NORM_LABELS[norm])
+            if s and ds_key in s:
+                std = np.array(s[ds_key][:len(vals)])
+                ax.fill_between(epochs, vals - std, vals + std,
+                                color=c, alpha=0.12)
 
         ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.5)
         ax.set_title(ds_labels[ds_key], fontsize=10)
@@ -1045,10 +1359,17 @@ def plot_ood_evolution(ood_histories, ecovalid, output_dir):
     ax = axes_flat[n_ds]
     for norm in NORMS:
         h = ecovalid.get(norm)
+        s = ecovalid_std.get(norm)
         if h and best_val(h) and best_val(h) > 2.0:
-            ax.plot(h["epoch"], h["val_acc"],
+            epochs = np.array(h["epoch"][:len(h["val_acc"])])
+            mean = np.array(h["val_acc"])
+            ax.plot(epochs, mean,
                     color=NORM_COLORS[norm], linestyle=NORM_STYLES[norm],
                     linewidth=1.6, label=NORM_LABELS[norm])
+            if s and "val_acc" in s:
+                std = np.array(s["val_acc"][:len(mean)])
+                ax.fill_between(epochs, mean - std, mean + std,
+                                color=NORM_COLORS[norm], alpha=0.12)
     ax.set_title("ID Val Accuracy (EcoValid)", fontsize=10)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Accuracy (%)")
@@ -1115,11 +1436,11 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     print(f"\nLoading runs from: {log_dir}")
-    noaug, ecovalid = load_all(log_dir)
+    noaug, ecovalid, ecovalid_std = load_all(log_dir)
 
     n_noaug   = len(noaug)
     n_ecovalid = len(ecovalid)
-    print(f"Loaded {n_noaug}/15 no-augment runs, {n_ecovalid}/5 ecovalid runs\n")
+    print(f"Loaded {n_noaug}/15 no-augment runs, {n_ecovalid}/6 ecovalid runs\n")
 
     # Summary table to stdout
     print_summary_table(noaug, ecovalid)
@@ -1137,6 +1458,7 @@ def main():
 
     if ecovalid:
         plot_augmentation_comparison(noaug, ecovalid, output_dir)
+        plot_ecovalid_progression(ecovalid, ecovalid_std, output_dir)
 
     # OOD analysis — loaded from train logs + ood_results.json (if available)
     ood_final = load_ood_final(log_dir)
@@ -1149,8 +1471,10 @@ def main():
     plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir)
 
     # OOD evolution over training (parsed from train.log)
-    ood_histories = load_ood_history(log_dir)
-    plot_ood_evolution(ood_histories, ecovalid, output_dir)
+    ood_histories, ood_histories_std = load_ood_history(log_dir)
+    plot_ood_evolution(ood_histories, ood_histories_std, ecovalid, ecovalid_std, output_dir)
+    plot_id_ood_trajectory(ecovalid, ood_histories, ood_histories_std, output_dir)
+    plot_robustness_ratio(ecovalid, ood_histories, ood_histories_std, output_dir)
 
     print(f"\nAll outputs saved to: {output_dir}/")
 

@@ -10,7 +10,7 @@ set -eo pipefail
 
 NORMS=(${NORMS:-batchnorm layernorm groupnorm rmsnorm derf localnorm})
 SEEDS=(${SEEDS:-42 43 44 45 46})
-DATASETS="imagenet_c"
+DATASETS="imagenet_r imagenet_a imagenet_sketch"
 DATASETS_ROOT="/projects/prjs0771/melle/datasets"
 LOG_DIR="/projects/prjs0771/melle/projects/visionCNN/logs"
 PARTITION="${PARTITION:-gpu_a100}"
@@ -71,7 +71,9 @@ for norm in "${NORMS[@]}"; do
             --output="${SLURM_LOG_DIR}/%j_ood_${norm}_s${seed}.out" \
             --error="${SLURM_LOG_DIR}/%j_ood_${norm}_s${seed}.err" \
             --wrap="
-                eval \"\$(micromamba shell hook -s bash)\" && micromamba activate visioncnn
+                MICROMAMBA=/gpfs/work1/0/prjs0771/melle/micromamba/bin/micromamba
+                eval \"\$(\$MICROMAMBA shell hook -s bash)\"
+                micromamba activate /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn
                 cd /gpfs/home1/mbolding/visionCNN
                 python scripts/evaluate_ood_full.py \
                     --checkpoint ${checkpoint} \

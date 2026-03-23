@@ -46,7 +46,7 @@ def load_checkpoint_and_model(checkpoint_path: str, device: torch.device):
 
     model = build_model(cfg)
     # Handle DDP state dict keys
-    state_dict = checkpoint["model_state_dict"]
+    state_dict = checkpoint.get("model_state_dict") or checkpoint["model"]
     if any(k.startswith("module.") for k in state_dict.keys()):
         state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict)
