@@ -1,0 +1,6 @@
+/var/spool/slurm/slurmd/job20813804/slurm_script: line 5: micromamba: command not found
+/var/spool/slurm/slurmd/job20813804/slurm_script: line 5: micromamba: command not found
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 19, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'

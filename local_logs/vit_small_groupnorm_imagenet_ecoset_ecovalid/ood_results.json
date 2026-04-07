@@ -1,0 +1,10 @@
+{
+  "ood/imagenet_r/acc": 1.5948319370142323,
+  "ood/imagenet_a/acc": 2.030735455543359,
+  "ood/imagenet_sketch/acc": 0.9117221418234442,
+  "ood/imagenet_c/mean_acc": 9.691176470588236,
+  "ood/imagenet_c_gaussian_noise_s3/acc": 4.397058823529412,
+  "ood/imagenet_c_fog_s3/acc": 5.970588235294118,
+  "ood/imagenet_c_defocus_blur_s3/acc": 9.691176470588236,
+  "ood/imagenet_c_contrast_s3/acc": 18.705882352941178
+}

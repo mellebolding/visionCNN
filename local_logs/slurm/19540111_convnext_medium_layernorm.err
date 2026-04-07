@@ -1,0 +1,44 @@
+[2026-02-16 12:44:58,124] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-16 12:45:02,405 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-16 12:45:02,419 [INFO] Config: {'experiment_name': 'convnext_medium_layernorm', 'model': {'name': 'convnext_medium', 'num_classes': 100, 'norm_layer': 'layernorm'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'tags': ['norm-experiment', 'imagenet100']}}
+2026-02-16 12:45:02,419 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/convnext_medium_layernorm
+2026-02-16 12:45:02,419 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-16 12:45:02,419 [INFO] Using device: cuda:0
+2026-02-16 12:45:02,419 [INFO] World size: 1
+2026-02-16 12:45:03,846 [INFO] Model: convnext_medium, Parameters: 19,173,700
+2026-02-16 12:45:03,850 [INFO] Using channels-last (NHWC) memory format
+2026-02-16 12:45:03,878 [INFO] Mixed precision training: True
+2026-02-16 12:45:20,761 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-16 12:45:20,761 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-16 12:45:20,761 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-16 12:45:20,761 [INFO] Resuming from: /projects/prjs0771/melle/projects/visionCNN/logs/convnext_medium_layernorm/last.pt
+2026-02-16 12:45:21,950 [INFO] Resumed from epoch 30, best_acc: 81.28%
+2026-02-16 12:45:21,950 [INFO] Starting training for 50 epochs...
+2026-02-16 12:48:32,849 [INFO] Epoch 31/50 | Train Loss: 1.3052, Train Acc: 85.32% | (validation skipped) | LR: 0.000323 | Time: 190.9s
+2026-02-16 12:51:35,848 [INFO] Epoch 32/50 | Train Loss: 1.2853, Train Acc: 85.99% | (validation skipped) | LR: 0.000294 | Time: 183.0s
+2026-02-16 12:54:38,814 [INFO] Epoch 33/50 | Train Loss: 1.2663, Train Acc: 86.56% | (validation skipped) | LR: 0.000267 | Time: 182.9s
+2026-02-16 12:57:41,724 [INFO] Epoch 34/50 | Train Loss: 1.2466, Train Acc: 87.32% | (validation skipped) | LR: 0.000240 | Time: 182.9s
+2026-02-16 13:00:48,814 [INFO] Epoch 35/50 | Train Loss: 1.2337, Train Acc: 87.68% | Val Loss: 1.3690, Val Acc: 82.94% | LR: 0.000214 | Time: 187.1s
+2026-02-16 13:00:49,141 [INFO] New best accuracy: 82.94%
+2026-02-16 13:03:51,903 [INFO] Epoch 36/50 | Train Loss: 1.2160, Train Acc: 88.22% | (validation skipped) | LR: 0.000189 | Time: 182.8s
+2026-02-16 13:06:54,654 [INFO] Epoch 37/50 | Train Loss: 1.1977, Train Acc: 88.84% | (validation skipped) | LR: 0.000166 | Time: 182.7s
+2026-02-16 13:09:57,562 [INFO] Epoch 38/50 | Train Loss: 1.1848, Train Acc: 89.13% | (validation skipped) | LR: 0.000144 | Time: 182.9s
+2026-02-16 13:13:00,359 [INFO] Epoch 39/50 | Train Loss: 1.1688, Train Acc: 89.59% | (validation skipped) | LR: 0.000124 | Time: 182.8s
+2026-02-16 13:18:52,858 [INFO] Epoch 40/50 | Train Loss: 1.1600, Train Acc: 90.04% | Val Loss: 1.3461, Val Acc: 83.88% | LR: 0.000105 | Time: 352.5s
+2026-02-16 13:18:53,102 [INFO] New best accuracy: 83.88%
+2026-02-16 13:21:56,189 [INFO] Epoch 41/50 | Train Loss: 1.1466, Train Acc: 90.38% | (validation skipped) | LR: 0.000087 | Time: 182.8s
+2026-02-16 13:24:59,027 [INFO] Epoch 42/50 | Train Loss: 1.1366, Train Acc: 90.68% | (validation skipped) | LR: 0.000071 | Time: 182.8s
+2026-02-16 13:28:01,882 [INFO] Epoch 43/50 | Train Loss: 1.1282, Train Acc: 90.88% | (validation skipped) | LR: 0.000057 | Time: 182.9s
+2026-02-16 13:31:04,687 [INFO] Epoch 44/50 | Train Loss: 1.1178, Train Acc: 91.22% | (validation skipped) | LR: 0.000045 | Time: 182.8s
+2026-02-16 13:34:10,851 [INFO] Epoch 45/50 | Train Loss: 1.1150, Train Acc: 91.29% | Val Loss: 1.3185, Val Acc: 84.58% | LR: 0.000034 | Time: 186.1s
+2026-02-16 13:34:11,113 [INFO] New best accuracy: 84.58%
+2026-02-16 13:37:25,935 [INFO] Epoch 46/50 | Train Loss: 1.1076, Train Acc: 91.55% | (validation skipped) | LR: 0.000026 | Time: 194.8s
+2026-02-16 13:40:28,675 [INFO] Epoch 47/50 | Train Loss: 1.1076, Train Acc: 91.59% | (validation skipped) | LR: 0.000019 | Time: 182.7s
+2026-02-16 13:43:31,461 [INFO] Epoch 48/50 | Train Loss: 1.1009, Train Acc: 91.78% | (validation skipped) | LR: 0.000014 | Time: 182.8s
+2026-02-16 13:46:34,470 [INFO] Epoch 49/50 | Train Loss: 1.0940, Train Acc: 91.91% | (validation skipped) | LR: 0.000011 | Time: 183.0s
+2026-02-16 13:49:40,745 [INFO] Epoch 50/50 | Train Loss: 1.0946, Train Acc: 91.94% | Val Loss: 1.3108, Val Acc: 84.98% | LR: 0.000010 | Time: 186.2s
+2026-02-16 13:49:41,080 [INFO] New best accuracy: 84.98%
+2026-02-16 13:49:41,329 [INFO] Training complete! Best accuracy: 84.98%
+2026-02-16 13:49:41,329 [INFO] Outputs saved to: /projects/prjs0771/melle/projects/visionCNN/logs/convnext_medium_layernorm

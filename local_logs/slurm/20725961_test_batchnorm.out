@@ -1,0 +1,12 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 20725961
+Job Name: test_batchnorm
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 
+Node list: gcn6
+==============================================

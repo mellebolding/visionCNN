@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 265, in <module>
+    main()
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 84, in main
+    model, cfg, epoch, best_acc = load_checkpoint_and_model(args.checkpoint, device)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 49, in load_checkpoint_and_model
+    state_dict = checkpoint["model_state_dict"]
+                 ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+KeyError: 'model_state_dict'

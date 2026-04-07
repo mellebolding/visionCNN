@@ -1,0 +1,31 @@
+[2026-02-18 10:19:14,975] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-18 10:19:19,810 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-18 10:19:19,810 [INFO] Config: {'experiment_name': 'resnet_medium_nonorm_ws_bs128_lr0.001', 'model': {'name': 'resnet_medium', 'num_classes': 100, 'norm_layer': 'nonorm_ws'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True, 'log_gradients': True, 'grad_log_freq': 50}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison-extended', 'tags': ['norm-experiment-extended', 'imagenet100']}}
+2026-02-18 10:19:19,810 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/resnet_medium_nonorm_ws_bs128_lr0.001
+2026-02-18 10:19:19,810 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-18 10:19:19,810 [INFO] Using device: cuda:0
+2026-02-18 10:19:19,810 [INFO] World size: 1
+2026-02-18 10:19:20,067 [INFO] Model: resnet_medium, Parameters: 21,318,948
+2026-02-18 10:19:20,110 [INFO] Using channels-last (NHWC) memory format
+2026-02-18 10:19:20,142 [INFO] Mixed precision training: True
+2026-02-18 10:19:58,343 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-18 10:19:58,343 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-18 10:19:58,343 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-18 10:19:58,343 [INFO] Starting training for 50 epochs...
+2026-02-18 10:19:58,343 [INFO] Gradient flow logging enabled (every 50 steps)
+2026-02-18 10:19:58,343 [INFO] Adaptive Gradient Clipping (AGC) enabled
+/sw/arch/RHEL8/EB_production/2023/software/PyTorch/2.1.2-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/torch/optim/lr_scheduler.py:136: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn("Detected call of `lr_scheduler.step()` before `optimizer.step()`. "
+2026-02-18 10:20:48,588 [INFO] Epoch 1/50 | Train Loss: nan, Train Acc: 1.02% | (validation skipped) | LR: 0.000999 | Time: 50.2s
+2026-02-18 10:21:33,702 [INFO] Epoch 2/50 | Train Loss: nan, Train Acc: 1.02% | (validation skipped) | LR: 0.000996 | Time: 45.1s
+2026-02-18 10:22:20,973 [INFO] Epoch 3/50 | Train Loss: nan, Train Acc: 1.02% | (validation skipped) | LR: 0.000991 | Time: 47.3s
+2026-02-18 10:23:06,542 [INFO] Epoch 4/50 | Train Loss: nan, Train Acc: 1.02% | (validation skipped) | LR: 0.000984 | Time: 45.6s
+2026-02-18 10:23:55,888 [INFO] Epoch 5/50 | Train Loss: nan, Train Acc: 1.02% | Val Loss: nan, Val Acc: 1.00% | LR: 0.000976 | Time: 49.3s
+2026-02-18 10:23:56,093 [INFO] New best accuracy: 1.00%
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-02-18T10:24:17.117] error: *** JOB 19624327 ON gcn40 CANCELLED AT 2026-02-18T10:24:17 DUE to SIGNAL Terminated ***
+[2026-02-18T10:24:17.117] error: *** STEP 19624327.0 ON gcn40 CANCELLED AT 2026-02-18T10:24:17 DUE to SIGNAL Terminated ***
+[2026-02-18 10:24:17,118] torch.distributed.elastic.agent.server.api: [WARNING] Received 15 death signal, shutting down workers
+[2026-02-18 10:24:17,118] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 3109713 closing signal SIGTERM

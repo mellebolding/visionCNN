@@ -1,0 +1,104 @@
+[rank0]:[W316 09:16:22.624724556 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 09:16:22,428 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 09:16:22,429 [INFO] Config: {'experiment_name': 'test3_batchnorm_ecovalid', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'batchnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 1, 'batch_size': 256, 'val_batch_size': 512, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'bn_adapt': True, 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': False, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['a100', 'ecovalid-aug', 'norm-experiment', 'batchnorm', 'imagenet_ecoset136', 'resnet50', 'snellius']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 09:16:22,429 [INFO] Run directory: logs/test3_batchnorm_ecovalid
+2026-03-16 09:16:22,433 [INFO] Set random seed: 42 (rank offset applied)
+2026-03-16 09:16:22,433 [INFO] Using device: cuda:0
+2026-03-16 09:16:22,433 [INFO] World size: 1
+2026-03-16 09:16:22,778 [INFO] Model: resnet50_custom, Parameters: 23,786,696
+2026-03-16 09:16:22,815 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 09:16:22,869 [INFO] Mixed precision training: True
+2026-03-16 09:16:48,034 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 09:16:48,034 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 09:16:48,034 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 09:16:50,917 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 09:16:50,918 [INFO] Saving per-image predictions to logs/test3_batchnorm_ecovalid/predictions
+2026-03-16 09:16:50,918 [INFO] Starting training for 1 epochs...
+2026-03-16 09:20:06,217 [INFO] Running OOD evaluation (epoch 1)...
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 691, in main
+[rank0]:     ood_results = evaluate_all_ood(
+[rank0]:                   ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 131, in evaluate_all_ood
+[rank0]:     result = evaluate_ood(
+[rank0]:              ^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 63, in evaluate_ood
+[rank0]:     for images, labels in dataloader:
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+[rank0]:     data = self._next_data()
+[rank0]:            ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1465, in _next_data
+[rank0]:     return self._process_data(data)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1491, in _process_data
+[rank0]:     data.reraise()
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/_utils.py", line 715, in reraise
+[rank0]:     raise exception
+[rank0]: AttributeError: Caught AttributeError in DataLoader worker process 0.
+[rank0]: Original Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+[rank0]:     data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+[rank0]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+[rank0]:     data = [self.dataset[idx] for idx in possibly_batched_index]
+[rank0]:             ~~~~~~~~~~~~^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/datasets/ood_datasets.py", line 155, in __getitem__
+[rank0]:     corrupted = self._corrupt(image_np, severity=self.severity,
+[rank0]:                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions/__init__.py", line 61, in corrupt
+[rank0]:     image_corrupted = corruption_dict[corruption_name](Image.fromarray(image),
+[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions/corruptions.py", line 302, in fog
+[rank0]:     plasma_fractal(mapsize=map_size, wibbledecay=c[1])[:shape[0],
+[rank0]:     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions/corruptions.py", line 47, in plasma_fractal
+[rank0]:     maparray = np.empty((mapsize, mapsize), dtype=np.float_)
+[rank0]:                                                   ^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/__init__.py", line 778, in __getattr__
+[rank0]:     raise AttributeError(
+[rank0]: AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.
+
+[rank0]:[W316 09:23:12.208277176 ProcessGroupNCCL.cpp:1250] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+E0316 09:23:15.819000 2641872 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 2641880) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-16_09:23:15
+  host      : gcn26.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 2641880)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn26: task 0: Exited with exit code 1
+srun: Terminating StepId=20756867.0

@@ -1,0 +1,46 @@
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 265, in <module>
+    main()
+  File "/gpfs/home1/mbolding/visionCNN/scripts/evaluate_ood_full.py", line 170, in main
+    imagenet_c_results = evaluate_imagenet_c_full(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 207, in evaluate_imagenet_c_full
+    result = evaluate_ood(
+             ^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 71, in evaluate_ood
+    for images, labels in dataloader:
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1465, in _next_data
+    return self._process_data(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1491, in _process_data
+    data.reraise()
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/_utils.py", line 715, in reraise
+    raise exception
+TypeError: Caught TypeError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/datasets/ood_datasets.py", line 155, in __getitem__
+    corrupted = self._corrupt(image_np, severity=self.severity,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions/__init__.py", line 61, in corrupt
+    image_corrupted = corruption_dict[corruption_name](Image.fromarray(image),
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions/corruptions.py", line 205, in glass_blur
+    gaussian(np.array(x) / 255., sigma=c[0], multichannel=True) * 255)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: gaussian() got an unexpected keyword argument 'multichannel'
+

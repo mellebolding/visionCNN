@@ -1,0 +1,177 @@
+[rank0]:[W316 11:15:41.075600048 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 11:15:43,669 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 11:15:43,669 [INFO] Config: {'experiment_name': 'resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed46', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'rmsnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 256, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 46, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['imagenet_ecoset136', 'snellius', 'ecovalid-aug', 'rmsnorm', 'a100', 'resnet50', 'norm-experiment']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 11:15:43,669 [INFO] Run directory: logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed46
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run bk4i6fqr
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed46/wandb/run-20260316_111544-bk4i6fqr
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed46
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/bk4i6fqr
+2026-03-16 11:15:47,684 [INFO] Weights & Biases logging enabled
+2026-03-16 11:15:47,694 [INFO] Set random seed: 46 (rank offset applied)
+2026-03-16 11:15:47,694 [INFO] Using device: cuda:0
+2026-03-16 11:15:47,695 [INFO] World size: 1
+2026-03-16 11:15:48,029 [INFO] Model: resnet50_custom, Parameters: 23,760,136
+2026-03-16 11:15:48,057 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 11:15:48,100 [INFO] Mixed precision training: True
+2026-03-16 11:17:06,551 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 11:17:06,552 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 11:17:06,552 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 11:18:14,184 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 11:18:14,185 [INFO] Saving per-image predictions to logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed46/predictions
+2026-03-16 11:18:14,185 [INFO] Starting training for 25 epochs...
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+    main(args)
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 664, in main
+    train_metrics = train_one_epoch(
+                    ^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 217, in train_one_epoch
+    outputs = model(images)
+              ^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1643, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1459, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/models/resnet.py", line 128, in forward
+    x = self.layer3(x)
+        ^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/models/resnet.py", line 54, in forward
+    out = self.bn3(self.conv3(out))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/visionCNN/src/models/norms.py", line 38, in forward
+    rms = x.float().pow(2).mean(dim=[1, 2, 3], keepdim=True).add(self.eps).sqrt()
+          ^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 196.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 75.25 MiB is free. Including non-PyTorch memory, this process has 39.40 GiB memory in use. Of the allocated memory 38.54 GiB is allocated by PyTorch, and 50.89 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 664, in main
+[rank0]:     train_metrics = train_one_epoch(
+[rank0]:                     ^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 217, in train_one_epoch
+[rank0]:     outputs = model(images)
+[rank0]:               ^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1643, in forward
+[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 1459, in _run_ddp_forward
+[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/models/resnet.py", line 128, in forward
+[rank0]:     x = self.layer3(x)
+[rank0]:         ^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/container.py", line 250, in forward
+[rank0]:     input = module(input)
+[rank0]:             ^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/models/resnet.py", line 54, in forward
+[rank0]:     out = self.bn3(self.conv3(out))
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/models/norms.py", line 38, in forward
+[rank0]:     rms = x.float().pow(2).mean(dim=[1, 2, 3], keepdim=True).add(self.eps).sqrt()
+[rank0]:           ^^^^^^^^^
+[rank0]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 196.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 75.25 MiB is free. Including non-PyTorch memory, this process has 39.40 GiB memory in use. Of the allocated memory 38.54 GiB is allocated by PyTorch, and 50.89 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+E0316 11:19:46.558000 485708 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 485719) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-16_11:19:46
+  host      : gcn59.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 485719)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn59: task 0: Exited with exit code 1
+srun: Terminating StepId=20761186.0

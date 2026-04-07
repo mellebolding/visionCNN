@@ -1,0 +1,61 @@
+[rank0]:[W313 21:21:39.260287512 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-13 21:21:39,446 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-13 21:21:39,447 [INFO] Config: {'experiment_name': 'test_rmsnorm_ecovalid', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'rmsnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '<IMAGENET_ROOT>', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 1, 'batch_size': 64, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/export/scratch1/home/melle/datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': False, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['resnet50', 'ecovalid-aug', 'imagenet_ecoset136', 'a100', 'norm-experiment', 'snellius', 'rmsnorm']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-13 21:21:39,447 [INFO] Run directory: logs/test_rmsnorm_ecovalid
+2026-03-13 21:21:39,450 [INFO] Set random seed: 42 (rank offset applied)
+2026-03-13 21:21:39,450 [INFO] Using device: cuda:0
+2026-03-13 21:21:39,450 [INFO] World size: 1
+2026-03-13 21:21:39,788 [INFO] Model: resnet50_custom, Parameters: 23,760,136
+2026-03-13 21:21:39,816 [INFO] Using channels-last (NHWC) memory format
+2026-03-13 21:21:39,856 [INFO] Mixed precision training: True
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 557, in main
+[rank0]:     train_loader, val_loader, train_sampler, val_sampler = build_dataloader_with_backend(cfg, dist_manager)
+[rank0]:                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/datasets/build.py", line 553, in build_dataloader_with_backend
+[rank0]:     return build_dataloader(cfg, dist_manager)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/datasets/build.py", line 380, in build_dataloader
+[rank0]:     train_dataset = build_dataset(cfg, is_train=True)
+[rank0]:                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/datasets/build.py", line 305, in build_dataset
+[rank0]:     raise ValueError(f"ImageNet split directory not found: {data_path}")
+[rank0]: ValueError: ImageNet split directory not found: <IMAGENET_ROOT>/train
+[rank0]:[W313 21:21:40.095725751 ProcessGroupNCCL.cpp:1250] Warning: WARNING: process group has NOT been destroyed before we destruct ProcessGroupNCCL. On normal program exit, the application should call destroy_process_group to ensure that any pending NCCL operations have finished in this process. In rare cases this process can exit before this point and block the progress of another member of the process group. This constraint has always been present,  but this warning has only been added since PyTorch 2.4 (function operator())
+E0313 21:21:41.189000 2029261 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 2029275) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-13_21:21:41
+  host      : gcn12.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 2029275)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn12: task 0: Exited with exit code 1
+srun: Terminating StepId=20726019.0

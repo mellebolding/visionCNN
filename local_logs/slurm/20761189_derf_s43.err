@@ -1,0 +1,44 @@
+[rank0]:[W316 11:15:52.806920880 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 11:15:52,471 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 11:15:52,472 [INFO] Config: {'experiment_name': 'resnet50_derf_imagenet_ecoset_ecovalid_seed43', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'derf_vp'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 256, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 43, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['norm-experiment', 'derf_vp', 'a100', 'ecovalid-aug', 'resnet50', 'snellius', 'imagenet_ecoset136']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 11:15:52,472 [INFO] Run directory: logs/resnet50_derf_imagenet_ecoset_ecovalid_seed43
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run q0x4d3d5
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_derf_imagenet_ecoset_ecovalid_seed43/wandb/run-20260316_111552-q0x4d3d5
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_derf_imagenet_ecoset_ecovalid_seed43
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/q0x4d3d5
+2026-03-16 11:15:54,948 [INFO] Weights & Biases logging enabled
+2026-03-16 11:15:54,950 [INFO] Set random seed: 43 (rank offset applied)
+2026-03-16 11:15:54,950 [INFO] Using device: cuda:0
+2026-03-16 11:15:54,950 [INFO] World size: 1
+2026-03-16 11:15:55,288 [INFO] Model: resnet50_custom, Parameters: 23,786,802
+2026-03-16 11:15:55,317 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 11:15:55,356 [INFO] Mixed precision training: True
+2026-03-16 11:16:09,806 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 11:16:09,806 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 11:16:09,806 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 11:16:12,765 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 11:16:12,766 [INFO] Saving per-image predictions to logs/resnet50_derf_imagenet_ecoset_ecovalid_seed43/predictions
+2026-03-16 11:16:12,766 [INFO] Starting training for 25 epochs...
+2026-03-16 11:20:59,861 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 11:21:45,564 [INFO] OOD accuracies: imagenet_c_contrast_s3: 0.7%, imagenet_c_defocus_blur_s3: 0.7%, imagenet_c_fog_s3: 0.7%, imagenet_c_gaussian_noise_s3: 0.7%
+2026-03-16 11:21:45,573 [INFO] Epoch 1/25 | Train Loss: 4.9433, Train Acc: 0.72% | Val Loss: 4.9128, Val Acc: 0.74% | LR: 0.000996 | Time: 332.8s
+2026-03-16 11:21:46,015 [INFO] New best accuracy: 0.74%
+2026-03-16 11:26:28,885 [INFO] Running OOD evaluation (epoch 2)...
+2026-03-16 11:27:14,480 [INFO] OOD accuracies: imagenet_c_contrast_s3: 0.7%, imagenet_c_defocus_blur_s3: 0.7%, imagenet_c_fog_s3: 0.7%, imagenet_c_gaussian_noise_s3: 0.7%
+2026-03-16 11:27:14,488 [INFO] Epoch 2/25 | Train Loss: 4.9129, Train Acc: 0.69% | Val Loss: 4.9126, Val Acc: 0.74% | LR: 0.000984 | Time: 325.4s
+2026-03-16 11:31:55,005 [INFO] Running OOD evaluation (epoch 3)...
+2026-03-16 11:32:40,410 [INFO] OOD accuracies: imagenet_c_contrast_s3: 0.7%, imagenet_c_defocus_blur_s3: 0.7%, imagenet_c_fog_s3: 0.7%, imagenet_c_gaussian_noise_s3: 0.7%
+2026-03-16 11:32:40,420 [INFO] Epoch 3/25 | Train Loss: 4.9128, Train Acc: 0.67% | Val Loss: 4.9129, Val Acc: 0.74% | LR: 0.000965 | Time: 325.4s
+2026-03-16 11:37:21,001 [INFO] Running OOD evaluation (epoch 4)...
+2026-03-16 11:38:06,404 [INFO] OOD accuracies: imagenet_c_contrast_s3: 0.7%, imagenet_c_defocus_blur_s3: 0.7%, imagenet_c_fog_s3: 0.7%, imagenet_c_gaussian_noise_s3: 0.7%
+2026-03-16 11:38:06,412 [INFO] Epoch 4/25 | Train Loss: 4.9128, Train Acc: 0.68% | Val Loss: 4.9129, Val Acc: 0.74% | LR: 0.000939 | Time: 325.5s
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-03-16T11:39:27.116] error: *** STEP 20761189.0 ON gcn61 CANCELLED AT 2026-03-16T11:39:27 DUE to SIGNAL Terminated ***
+[2026-03-16T11:39:27.117] error: *** JOB 20761189 ON gcn61 CANCELLED AT 2026-03-16T11:39:27 DUE to SIGNAL Terminated ***
+W0316 11:39:27.117000 197718 site-packages/torch/distributed/elastic/agent/server/api.py:704] Received 15 death signal, shutting down workers
+W0316 11:39:27.121000 197718 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 197726 closing signal SIGTERM

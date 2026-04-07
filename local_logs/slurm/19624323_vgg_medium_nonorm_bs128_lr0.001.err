@@ -1,0 +1,24 @@
+[2026-02-18 10:19:13,191] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-18 10:19:19,524 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-18 10:19:19,545 [INFO] Config: {'experiment_name': 'vgg_medium_nonorm_bs128_lr0.001', 'model': {'name': 'vgg_medium', 'num_classes': 100, 'norm_layer': 'nonorm'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True, 'log_gradients': True, 'grad_log_freq': 50}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison-extended', 'tags': ['norm-experiment-extended', 'imagenet100']}}
+2026-02-18 10:19:19,545 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_medium_nonorm_bs128_lr0.001
+2026-02-18 10:19:19,545 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-18 10:19:19,545 [INFO] Using device: cuda:0
+2026-02-18 10:19:19,545 [INFO] World size: 1
+2026-02-18 10:19:19,713 [INFO] Model: vgg_medium, Parameters: 14,765,988
+2026-02-18 10:19:19,738 [INFO] Using channels-last (NHWC) memory format
+2026-02-18 10:19:19,759 [INFO] Mixed precision training: True
+2026-02-18 10:19:58,342 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-18 10:19:58,342 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-18 10:19:58,342 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-18 10:19:58,342 [INFO] Starting training for 50 epochs...
+2026-02-18 10:19:58,342 [INFO] Gradient flow logging enabled (every 50 steps)
+2026-02-18 10:21:37,651 [INFO] Epoch 1/50 | Train Loss: 4.6047, Train Acc: 0.93% | (validation skipped) | LR: 0.000999 | Time: 99.3s
+2026-02-18 10:23:13,010 [INFO] Epoch 2/50 | Train Loss: 4.6043, Train Acc: 0.96% | (validation skipped) | LR: 0.000996 | Time: 95.3s
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-02-18T10:24:02.117] error: *** JOB 19624323 ON gcn54 CANCELLED AT 2026-02-18T10:24:02 DUE to SIGNAL Terminated ***
+[2026-02-18T10:24:02.117] error: *** STEP 19624323.0 ON gcn54 CANCELLED AT 2026-02-18T10:24:02 DUE to SIGNAL Terminated ***
+[2026-02-18 10:24:02,117] torch.distributed.elastic.agent.server.api: [WARNING] Received 15 death signal, shutting down workers
+[2026-02-18 10:24:02,117] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 1185542 closing signal SIGTERM

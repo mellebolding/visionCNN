@@ -1,0 +1,12 @@
+Loading checkpoint: /projects/prjs0771/melle/projects/visionCNN/logs/resnet50_localnorm_imagenet_ecoset_ecovalid_seed46/best.pt
+Model loaded (epoch 23, best_acc 75.40%)
+Class mapping: imagenet_ecoset136 (136 classes)
+
+Evaluating standard OOD datasets: ['imagenet_r', 'imagenet_sketch', 'imagenet_a']
+  ood/imagenet_a/acc: 4.72%
+  ood/imagenet_r/acc: 19.25%
+  ood/imagenet_sketch/acc: 25.99%
+
+Results saved to /projects/prjs0771/melle/projects/visionCNN/logs/resnet50_localnorm_imagenet_ecoset_ecovalid_seed46/ood_results.json
+
+Done!

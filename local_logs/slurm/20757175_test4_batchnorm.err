@@ -1,0 +1,22 @@
+[rank0]:[W316 09:40:42.519343986 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 09:40:42,361 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 09:40:42,361 [INFO] Config: {'experiment_name': 'test4_batchnorm_ecovalid', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'batchnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 1, 'batch_size': 256, 'val_batch_size': 512, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'bn_adapt': True, 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': False, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['batchnorm', 'imagenet_ecoset136', 'resnet50', 'snellius', 'a100', 'ecovalid-aug', 'norm-experiment']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 09:40:42,361 [INFO] Run directory: logs/test4_batchnorm_ecovalid
+2026-03-16 09:40:42,365 [INFO] Set random seed: 42 (rank offset applied)
+2026-03-16 09:40:42,365 [INFO] Using device: cuda:0
+2026-03-16 09:40:42,365 [INFO] World size: 1
+2026-03-16 09:40:42,709 [INFO] Model: resnet50_custom, Parameters: 23,786,696
+2026-03-16 09:40:42,737 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 09:40:42,785 [INFO] Mixed precision training: True
+2026-03-16 09:41:08,657 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 09:41:08,657 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 09:41:08,657 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 09:41:11,721 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 09:41:11,772 [INFO] Saving per-image predictions to logs/test4_batchnorm_ecovalid/predictions
+2026-03-16 09:41:11,773 [INFO] Starting training for 1 epochs...
+2026-03-16 09:44:26,860 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 09:45:13,362 [INFO] OOD accuracies: imagenet_c_contrast_s3: 5.1%, imagenet_c_defocus_blur_s3: 6.1%, imagenet_c_fog_s3: 5.3%, imagenet_c_gaussian_noise_s3: 6.5%
+2026-03-16 09:45:13,404 [INFO] Epoch 1/1 | Train Loss: 4.5279, Train Acc: 6.43% | Val Loss: 4.1429, Val Acc: 11.90% | LR: 0.000010 | Time: 241.6s
+2026-03-16 09:45:13,703 [INFO] New best accuracy: 11.90%
+2026-03-16 09:45:14,224 [INFO] Training complete! Best accuracy: 11.90%
+2026-03-16 09:45:14,224 [INFO] Outputs saved to: logs/test4_batchnorm_ecovalid
