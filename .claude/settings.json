@@ -98,7 +98,8 @@
       "WebFetch(domain:ir.cwi.nl)",
       "WebFetch(domain:deepai.org)",
       "WebFetch(domain:ar5iv.labs.arxiv.org)",
-      "WebFetch(domain:www.cwi.nl)"
+      "WebFetch(domain:www.cwi.nl)",
+      "Bash(chmod +x /export/scratch1/home/melle/visionCNN/scripts/submit_snellius_ood_eval_dyn.sh)"
     ],
     "additionalDirectories": [
       "/gpfs/home1/mbolding/visionCNN/logs",

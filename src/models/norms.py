@@ -256,6 +256,33 @@ class WSConv2d(nn.Conv2d):
                         self.padding, self.dilation, self.groups)
 
 
+def enable_dynamic_eval(model: nn.Module) -> nn.Module:
+    """Switch a trained model to dynamic-statistics inference.
+
+    - nn.BatchNorm2d  → DynamicBatchNorm2d  (state copied, eval uses batch stats)
+    - LocalNorm2d     → sets dynamic_eval=True (eval uses batch stats)
+
+    Safe to call on already-converted models (idempotent).
+    Returns the model in-place (also returned for convenience).
+    """
+    for name, module in model.named_children():
+        if isinstance(module, nn.BatchNorm2d) and not isinstance(module, DynamicBatchNorm2d):
+            dyn = DynamicBatchNorm2d(
+                module.num_features,
+                eps=module.eps,
+                momentum=module.momentum,
+                affine=module.affine,
+                track_running_stats=module.track_running_stats,
+            )
+            dyn.load_state_dict(module.state_dict())
+            setattr(model, name, dyn)
+        elif isinstance(module, LocalNorm2d):
+            module.dynamic_eval = True
+        else:
+            enable_dynamic_eval(module)
+    return model
+
+
 def adaptive_gradient_clip(model, clip_factor=0.01, eps=1e-3):
     """Adaptive Gradient Clipping (Brock et al., 2021).
 

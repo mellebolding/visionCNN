@@ -21,6 +21,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.factory import build_model
+from src.models.norms import enable_dynamic_eval
 from src.datasets.build import build_ood_dataloaders
 from src.evaluation.class_mapping import ClassMapping
 from src.evaluation.ood_eval import (
@@ -74,6 +75,9 @@ def main():
                         help="Resume wandb run to log results (optional)")
     parser.add_argument("--output_dir", type=str, default=None,
                         help="Output directory (default: same as checkpoint dir)")
+    parser.add_argument("--dynamic_eval", action="store_true",
+                        help="Use batch statistics at inference (BatchNorm→DynamicBatchNorm, "
+                             "LocalNorm dynamic_eval=True). No retraining needed.")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -83,6 +87,10 @@ def main():
     print(f"Loading checkpoint: {args.checkpoint}")
     model, cfg, epoch, best_acc = load_checkpoint_and_model(args.checkpoint, device)
     print(f"Model loaded (epoch {epoch}, best_acc {best_acc:.2f}%)")
+
+    if args.dynamic_eval:
+        enable_dynamic_eval(model)
+        print("Dynamic eval enabled: norm statistics recomputed from each test batch")
 
     # Determine output dir
     output_dir = args.output_dir or os.path.dirname(args.checkpoint)
