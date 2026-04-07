@@ -1,0 +1,5 @@
+Loading checkpoint: /projects/prjs0771/melle/projects/visionCNN/logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed44/best.pt
+Model loaded (epoch 23, best_acc 59.51%)
+Class mapping: imagenet_ecoset136 (136 classes)
+
+Running full ImageNet-C evaluation (15 corruptions × 5 severities)...

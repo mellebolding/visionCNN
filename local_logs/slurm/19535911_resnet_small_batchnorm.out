@@ -1,0 +1,18 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 19535911
+Job Name: resnet_small_batchnorm
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 18
+Node list: gcn57
+==============================================
+Config: configs/norm_experiment.yaml
+Additional args: --set model.name=resnet_small model.norm_layer=batchnorm experiment_name=resnet_small_batchnorm
+==============================================
+Single-node training with 1 GPUs
+Outputs will be saved to: /projects/prjs0771/melle/projects/visionCNN/logs
+Error importing huggingface_hub.hf_api: No module named 'httpcore'

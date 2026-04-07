@@ -1,0 +1,177 @@
+[rank0]:[W316 11:15:31.451591864 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 11:15:32,420 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 11:15:32,420 [INFO] Config: {'experiment_name': 'resnet50_batchnorm_imagenet_ecoset_ecovalid_seed46', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'batchnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 256, 'val_batch_size': 512, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 46, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'bn_adapt': True, 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['ecovalid-aug', 'imagenet_ecoset136', 'batchnorm', 'norm-experiment', 'snellius', 'a100', 'resnet50']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 11:15:32,420 [INFO] Run directory: logs/resnet50_batchnorm_imagenet_ecoset_ecovalid_seed46
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run a3thuldt
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_batchnorm_imagenet_ecoset_ecovalid_seed46/wandb/run-20260316_111532-a3thuldt
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_batchnorm_imagenet_ecoset_ecovalid_seed46
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/a3thuldt
+2026-03-16 11:15:33,823 [INFO] Weights & Biases logging enabled
+2026-03-16 11:15:33,827 [INFO] Set random seed: 46 (rank offset applied)
+2026-03-16 11:15:33,827 [INFO] Using device: cuda:0
+2026-03-16 11:15:33,827 [INFO] World size: 1
+2026-03-16 11:15:34,181 [INFO] Model: resnet50_custom, Parameters: 23,786,696
+2026-03-16 11:15:34,208 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 11:15:34,256 [INFO] Mixed precision training: True
+2026-03-16 11:15:50,650 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 11:15:50,650 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 11:15:50,651 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 11:15:54,380 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 11:15:54,381 [INFO] Saving per-image predictions to logs/resnet50_batchnorm_imagenet_ecoset_ecovalid_seed46/predictions
+2026-03-16 11:15:54,381 [INFO] Starting training for 25 epochs...
+2026-03-16 11:19:05,553 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 11:19:52,010 [INFO] OOD accuracies: imagenet_c_contrast_s3: 5.8%, imagenet_c_defocus_blur_s3: 7.4%, imagenet_c_fog_s3: 6.7%, imagenet_c_gaussian_noise_s3: 8.6%
+2026-03-16 11:19:54,728 [INFO] Epoch 1/25 | Train Loss: 4.4912, Train Acc: 6.91% | Val Loss: 4.0732, Val Acc: 14.06% | LR: 0.000996 | Time: 240.3s
+2026-03-16 11:19:56,497 [INFO] New best accuracy: 14.06%
+2026-03-16 11:23:06,529 [INFO] Running OOD evaluation (epoch 2)...
+2026-03-16 11:23:52,815 [INFO] OOD accuracies: imagenet_c_contrast_s3: 10.0%, imagenet_c_defocus_blur_s3: 11.1%, imagenet_c_fog_s3: 10.1%, imagenet_c_gaussian_noise_s3: 11.4%
+2026-03-16 11:23:57,972 [INFO] Epoch 2/25 | Train Loss: 3.9281, Train Acc: 16.70% | Val Loss: 3.6293, Val Acc: 22.66% | LR: 0.000984 | Time: 235.3s
+2026-03-16 11:23:58,369 [INFO] New best accuracy: 22.66%
+2026-03-16 11:27:08,059 [INFO] Running OOD evaluation (epoch 3)...
+2026-03-16 11:27:54,420 [INFO] OOD accuracies: imagenet_c_contrast_s3: 15.0%, imagenet_c_defocus_blur_s3: 14.9%, imagenet_c_fog_s3: 14.5%, imagenet_c_gaussian_noise_s3: 15.7%
+2026-03-16 11:27:59,678 [INFO] Epoch 3/25 | Train Loss: 3.5972, Train Acc: 23.93% | Val Loss: 3.3058, Val Acc: 30.51% | LR: 0.000965 | Time: 236.9s
+2026-03-16 11:28:00,074 [INFO] New best accuracy: 30.51%
+2026-03-16 11:31:08,376 [INFO] Running OOD evaluation (epoch 4)...
+2026-03-16 11:31:54,679 [INFO] OOD accuracies: imagenet_c_contrast_s3: 19.6%, imagenet_c_defocus_blur_s3: 18.6%, imagenet_c_fog_s3: 18.2%, imagenet_c_gaussian_noise_s3: 18.4%
+2026-03-16 11:31:54,845 [INFO] Epoch 4/25 | Train Loss: 3.3289, Train Acc: 30.37% | Val Loss: 2.9326, Val Acc: 39.84% | LR: 0.000939 | Time: 232.4s
+2026-03-16 11:31:55,245 [INFO] New best accuracy: 39.84%
+2026-03-16 11:35:02,232 [INFO] Running OOD evaluation (epoch 5)...
+2026-03-16 11:35:48,301 [INFO] OOD accuracies: imagenet_c_contrast_s3: 23.5%, imagenet_c_defocus_blur_s3: 19.3%, imagenet_c_fog_s3: 21.3%, imagenet_c_gaussian_noise_s3: 21.3%
+2026-03-16 11:35:48,320 [INFO] Epoch 5/25 | Train Loss: 3.1048, Train Acc: 36.14% | Val Loss: 2.8208, Val Acc: 42.96% | LR: 0.000905 | Time: 230.8s
+2026-03-16 11:35:48,716 [INFO] New best accuracy: 42.96%
+2026-03-16 11:38:55,977 [INFO] Running OOD evaluation (epoch 6)...
+2026-03-16 11:39:42,460 [INFO] OOD accuracies: imagenet_c_contrast_s3: 26.0%, imagenet_c_defocus_blur_s3: 20.9%, imagenet_c_fog_s3: 23.7%, imagenet_c_gaussian_noise_s3: 23.1%
+2026-03-16 11:39:42,479 [INFO] Epoch 6/25 | Train Loss: 2.9362, Train Acc: 40.36% | Val Loss: 2.8708, Val Acc: 42.54% | LR: 0.000866 | Time: 231.5s
+2026-03-16 11:42:49,110 [INFO] Running OOD evaluation (epoch 7)...
+2026-03-16 11:43:36,361 [INFO] OOD accuracies: imagenet_c_contrast_s3: 27.6%, imagenet_c_defocus_blur_s3: 21.3%, imagenet_c_fog_s3: 25.4%, imagenet_c_gaussian_noise_s3: 24.7%
+2026-03-16 11:43:36,379 [INFO] Epoch 7/25 | Train Loss: 2.7993, Train Acc: 44.09% | Val Loss: 2.5585, Val Acc: 49.78% | LR: 0.000821 | Time: 233.1s
+2026-03-16 11:43:36,653 [INFO] New best accuracy: 49.78%
+2026-03-16 11:46:44,389 [INFO] Running OOD evaluation (epoch 8)...
+2026-03-16 11:47:32,281 [INFO] OOD accuracies: imagenet_c_contrast_s3: 30.8%, imagenet_c_defocus_blur_s3: 25.3%, imagenet_c_fog_s3: 28.7%, imagenet_c_gaussian_noise_s3: 27.4%
+2026-03-16 11:47:32,302 [INFO] Epoch 8/25 | Train Loss: 2.6782, Train Acc: 47.54% | Val Loss: 2.4128, Val Acc: 53.69% | LR: 0.000770 | Time: 233.7s
+2026-03-16 11:47:32,718 [INFO] New best accuracy: 53.69%
+2026-03-16 11:50:39,587 [INFO] Running OOD evaluation (epoch 9)...
+2026-03-16 11:51:26,079 [INFO] OOD accuracies: imagenet_c_contrast_s3: 32.4%, imagenet_c_defocus_blur_s3: 24.5%, imagenet_c_fog_s3: 28.9%, imagenet_c_gaussian_noise_s3: 28.2%
+2026-03-16 11:51:26,097 [INFO] Epoch 9/25 | Train Loss: 2.5853, Train Acc: 50.05% | Val Loss: 2.4074, Val Acc: 54.87% | LR: 0.000716 | Time: 231.5s
+2026-03-16 11:51:26,489 [INFO] New best accuracy: 54.87%
+2026-03-16 11:54:33,943 [INFO] Running OOD evaluation (epoch 10)...
+2026-03-16 11:55:19,972 [INFO] OOD accuracies: imagenet_c_contrast_s3: 34.4%, imagenet_c_defocus_blur_s3: 26.9%, imagenet_c_fog_s3: 31.4%, imagenet_c_gaussian_noise_s3: 29.4%
+2026-03-16 11:55:20,211 [INFO] Epoch 10/25 | Train Loss: 2.4951, Train Acc: 52.57% | Val Loss: 2.2806, Val Acc: 58.22% | LR: 0.000658 | Time: 231.5s
+2026-03-16 11:55:20,606 [INFO] New best accuracy: 58.22%
+2026-03-16 11:58:22,056 [INFO] Epoch 11/25 | Train Loss: 2.4117, Train Acc: 54.86% | (validation skipped) | LR: 0.000598 | Time: 179.3s
+2026-03-16 12:01:26,719 [INFO] Running OOD evaluation (epoch 12)...
+2026-03-16 12:02:12,954 [INFO] OOD accuracies: imagenet_c_contrast_s3: 37.4%, imagenet_c_defocus_blur_s3: 27.9%, imagenet_c_fog_s3: 33.6%, imagenet_c_gaussian_noise_s3: 30.7%
+2026-03-16 12:02:12,973 [INFO] Epoch 12/25 | Train Loss: 2.3485, Train Acc: 56.62% | Val Loss: 2.1713, Val Acc: 61.00% | LR: 0.000536 | Time: 230.9s
+2026-03-16 12:02:13,380 [INFO] New best accuracy: 61.00%
+2026-03-16 12:05:14,742 [INFO] Epoch 13/25 | Train Loss: 2.2799, Train Acc: 58.55% | (validation skipped) | LR: 0.000474 | Time: 179.7s
+2026-03-16 12:08:19,641 [INFO] Running OOD evaluation (epoch 14)...
+2026-03-16 12:09:05,922 [INFO] OOD accuracies: imagenet_c_contrast_s3: 39.2%, imagenet_c_defocus_blur_s3: 29.3%, imagenet_c_fog_s3: 36.2%, imagenet_c_gaussian_noise_s3: 32.8%
+2026-03-16 12:09:11,728 [INFO] Epoch 14/25 | Train Loss: 2.2164, Train Acc: 60.35% | Val Loss: 2.0424, Val Acc: 64.65% | LR: 0.000412 | Time: 237.0s
+2026-03-16 12:09:12,005 [INFO] New best accuracy: 64.65%
+2026-03-16 12:12:12,921 [INFO] Epoch 15/25 | Train Loss: 2.1629, Train Acc: 61.94% | (validation skipped) | LR: 0.000352 | Time: 179.0s
+2026-03-16 12:15:18,061 [INFO] Running OOD evaluation (epoch 16)...
+2026-03-16 12:16:04,370 [INFO] OOD accuracies: imagenet_c_contrast_s3: 41.9%, imagenet_c_defocus_blur_s3: 30.0%, imagenet_c_fog_s3: 37.2%, imagenet_c_gaussian_noise_s3: 32.8%
+2026-03-16 12:16:04,388 [INFO] Epoch 16/25 | Train Loss: 2.1062, Train Acc: 63.59% | Val Loss: 1.9562, Val Acc: 67.51% | LR: 0.000294 | Time: 231.5s
+2026-03-16 12:16:04,662 [INFO] New best accuracy: 67.51%
+2026-03-16 12:19:08,933 [INFO] Epoch 17/25 | Train Loss: 2.0589, Train Acc: 64.71% | (validation skipped) | LR: 0.000240 | Time: 179.7s
+2026-03-16 12:22:13,374 [INFO] Running OOD evaluation (epoch 18)...
+2026-03-16 12:22:59,566 [INFO] OOD accuracies: imagenet_c_contrast_s3: 43.0%, imagenet_c_defocus_blur_s3: 32.0%, imagenet_c_fog_s3: 38.0%, imagenet_c_gaussian_noise_s3: 33.9%
+2026-03-16 12:22:59,584 [INFO] Epoch 18/25 | Train Loss: 2.0121, Train Acc: 66.23% | Val Loss: 1.8861, Val Acc: 70.06% | LR: 0.000189 | Time: 230.6s
+2026-03-16 12:22:59,979 [INFO] New best accuracy: 70.06%
+2026-03-16 12:26:01,855 [INFO] Epoch 19/25 | Train Loss: 1.9723, Train Acc: 67.48% | (validation skipped) | LR: 0.000144 | Time: 179.8s
+2026-03-16 12:29:06,955 [INFO] Running OOD evaluation (epoch 20)...
+2026-03-16 12:29:52,965 [INFO] OOD accuracies: imagenet_c_contrast_s3: 45.0%, imagenet_c_defocus_blur_s3: 32.2%, imagenet_c_fog_s3: 39.6%, imagenet_c_gaussian_noise_s3: 34.9%
+2026-03-16 12:29:52,983 [INFO] Epoch 20/25 | Train Loss: 1.9373, Train Acc: 68.48% | Val Loss: 1.8116, Val Acc: 71.93% | LR: 0.000105 | Time: 231.1s
+2026-03-16 12:29:53,381 [INFO] New best accuracy: 71.93%
+2026-03-16 12:33:01,265 [INFO] Running OOD evaluation (epoch 21)...
+2026-03-16 12:33:47,636 [INFO] OOD accuracies: imagenet_c_contrast_s3: 45.2%, imagenet_c_defocus_blur_s3: 32.4%, imagenet_c_fog_s3: 40.4%, imagenet_c_gaussian_noise_s3: 34.9%
+2026-03-16 12:33:47,654 [INFO] Epoch 21/25 | Train Loss: 1.9060, Train Acc: 69.55% | Val Loss: 1.7818, Val Acc: 73.18% | LR: 0.000071 | Time: 232.1s
+2026-03-16 12:33:47,934 [INFO] New best accuracy: 73.18%
+2026-03-16 12:36:49,436 [INFO] Epoch 22/25 | Train Loss: 1.8757, Train Acc: 70.32% | (validation skipped) | LR: 0.000045 | Time: 179.7s
+2026-03-16 12:39:47,874 [INFO] Epoch 23/25 | Train Loss: 1.8584, Train Acc: 70.87% | (validation skipped) | LR: 0.000026 | Time: 178.4s
+2026-03-16 12:42:53,386 [INFO] Running OOD evaluation (epoch 24)...
+2026-03-16 12:43:40,093 [INFO] OOD accuracies: imagenet_c_contrast_s3: 46.4%, imagenet_c_defocus_blur_s3: 33.1%, imagenet_c_fog_s3: 41.0%, imagenet_c_gaussian_noise_s3: 36.0%
+2026-03-16 12:43:40,110 [INFO] Epoch 24/25 | Train Loss: 1.8418, Train Acc: 71.30% | Val Loss: 1.7572, Val Acc: 73.81% | LR: 0.000014 | Time: 232.2s
+2026-03-16 12:43:40,388 [INFO] New best accuracy: 73.81%
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 850, in save
+    _save(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 1114, in _save
+    zip_file.write_record(name, storage, num_bytes)
+RuntimeError: [enforce fail at inline_container.cc:778] . PytorchStreamWriter failed writing file data/718: file write failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+    main(args)
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 803, in main
+    save_checkpoint(
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 368, in save_checkpoint
+    torch.save(checkpoint, filepath)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 849, in save
+    with _open_zipfile_writer(f) as opened_zipfile:
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 690, in __exit__
+    self.file_like.write_end_of_file()
+RuntimeError: [enforce fail at inline_container.cc:603] . unexpected pos 175275200 vs 175275088
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 850, in save
+[rank0]:     _save(
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 1114, in _save
+[rank0]:     zip_file.write_record(name, storage, num_bytes)
+[rank0]: RuntimeError: [enforce fail at inline_container.cc:778] . PytorchStreamWriter failed writing file data/718: file write failed
+
+[rank0]: During handling of the above exception, another exception occurred:
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 803, in main
+[rank0]:     save_checkpoint(
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 368, in save_checkpoint
+[rank0]:     torch.save(checkpoint, filepath)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 849, in save
+[rank0]:     with _open_zipfile_writer(f) as opened_zipfile:
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/serialization.py", line 690, in __exit__
+[rank0]:     self.file_like.write_end_of_file()
+[rank0]: RuntimeError: [enforce fail at inline_container.cc:603] . unexpected pos 175275200 vs 175275088
+E0316 12:46:27.827000 2842225 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 2842241) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-16_12:46:27
+  host      : gcn51.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 2842241)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn51: task 0: Exited with exit code 1
+srun: Terminating StepId=20761158.0

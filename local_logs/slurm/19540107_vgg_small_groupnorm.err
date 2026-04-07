@@ -1,0 +1,32 @@
+[2026-02-16 12:44:57,242] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-16 12:45:01,528 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-16 12:45:01,555 [INFO] Config: {'experiment_name': 'vgg_small_groupnorm', 'model': {'name': 'vgg_small', 'num_classes': 100, 'norm_layer': 'groupnorm'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'tags': ['norm-experiment', 'imagenet100']}}
+2026-02-16 12:45:01,555 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_small_groupnorm
+2026-02-16 12:45:01,555 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-16 12:45:01,555 [INFO] Using device: cuda:0
+2026-02-16 12:45:01,555 [INFO] World size: 1
+2026-02-16 12:45:01,654 [INFO] Model: vgg_small, Parameters: 9,277,284
+2026-02-16 12:45:01,671 [INFO] Using channels-last (NHWC) memory format
+2026-02-16 12:45:01,687 [INFO] Mixed precision training: True
+2026-02-16 12:45:18,939 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-16 12:45:18,939 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-16 12:45:18,939 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-16 12:45:18,939 [INFO] Resuming from: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_small_groupnorm/last.pt
+2026-02-16 12:45:19,393 [INFO] Resumed from epoch 40, best_acc: 81.54%
+2026-02-16 12:45:19,393 [INFO] Starting training for 50 epochs...
+2026-02-16 12:47:48,666 [INFO] Epoch 41/50 | Train Loss: 1.4020, Train Acc: 83.50% | (validation skipped) | LR: 0.000087 | Time: 149.3s
+2026-02-16 12:50:14,386 [INFO] Epoch 42/50 | Train Loss: 1.3863, Train Acc: 84.04% | (validation skipped) | LR: 0.000071 | Time: 145.7s
+2026-02-16 12:52:40,101 [INFO] Epoch 43/50 | Train Loss: 1.3778, Train Acc: 84.32% | (validation skipped) | LR: 0.000057 | Time: 145.7s
+2026-02-16 12:55:05,839 [INFO] Epoch 44/50 | Train Loss: 1.3654, Train Acc: 84.80% | (validation skipped) | LR: 0.000045 | Time: 145.7s
+2026-02-16 12:57:35,444 [INFO] Epoch 45/50 | Train Loss: 1.3566, Train Acc: 85.09% | Val Loss: 1.4382, Val Acc: 82.12% | LR: 0.000034 | Time: 149.5s
+2026-02-16 12:57:35,607 [INFO] New best accuracy: 82.12%
+2026-02-16 13:00:01,093 [INFO] Epoch 46/50 | Train Loss: 1.3475, Train Acc: 85.32% | (validation skipped) | LR: 0.000026 | Time: 145.5s
+2026-02-16 13:02:26,672 [INFO] Epoch 47/50 | Train Loss: 1.3433, Train Acc: 85.44% | (validation skipped) | LR: 0.000019 | Time: 145.6s
+2026-02-16 13:04:52,203 [INFO] Epoch 48/50 | Train Loss: 1.3385, Train Acc: 85.79% | (validation skipped) | LR: 0.000014 | Time: 145.5s
+2026-02-16 13:07:18,056 [INFO] Epoch 49/50 | Train Loss: 1.3343, Train Acc: 85.79% | (validation skipped) | LR: 0.000011 | Time: 145.8s
+2026-02-16 13:09:47,410 [INFO] Epoch 50/50 | Train Loss: 1.3369, Train Acc: 85.66% | Val Loss: 1.4301, Val Acc: 82.22% | LR: 0.000010 | Time: 149.3s
+2026-02-16 13:09:47,571 [INFO] New best accuracy: 82.22%
+2026-02-16 13:09:47,712 [INFO] Training complete! Best accuracy: 82.22%
+2026-02-16 13:09:47,712 [INFO] Outputs saved to: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_small_groupnorm

@@ -1,0 +1,217 @@
+_machine:
+    value:
+        log_dir: /projects/prjs0771/melle/projects/visionCNN/logs
+_wandb:
+    value:
+        cli_version: 0.25.0
+        e:
+            z2ifhucydtlubhexoyz0qtdvr3t4h3nc:
+                args:
+                    - --config
+                    - configs/imagenet_ecoset_norm_experiment_ecovalid/derf.yaml
+                    - --log_dir
+                    - logs
+                    - --set
+                    - training.seed=43
+                    - experiment_name=resnet50_derf_imagenet_ecoset_ecovalid_seed43
+                codePath: scripts/train.py
+                codePathLocal: scripts/train.py
+                cpu_count: 72
+                cpu_count_logical: 72
+                cudaVersion: "13.1"
+                disk:
+                    /:
+                        total: "270181462016"
+                        used: "4510326784"
+                email: melleb11@gmail.com
+                executable: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+                git:
+                    commit: 5f157c47624ddbf009450ccb3bc8e0e8503290ac
+                    remote: git@github.com:mellebolding/visionCNN.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 6912
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-0c3ecfd1-3816-4458-dfbe-8617ea3fe0bf
+                host: gcn11.local.snellius.surf.nl
+                memory:
+                    total: "540626894848"
+                os: Linux-5.14.0-570.84.1.el9_6.x86_64-x86_64-with-glibc2.34
+                program: /gpfs/home1/mbolding/visionCNN/scripts/train.py
+                python: CPython 3.11.14
+                root: logs/resnet50_derf_imagenet_ecoset_ecovalid_seed43
+                slurm:
+                    cluster_name: snellius
+                    conf: /var/spool/slurm/slurmd/conf-cache/slurm.conf
+                    cpu_bind: quiet,mask_cpu:0x00003FFFF000000000
+                    cpu_bind_list: "0x00003FFFF000000000"
+                    cpu_bind_type: 'mask_cpu:'
+                    cpu_bind_verbose: quiet
+                    cpus_on_node: "18"
+                    cpus_per_gpu: "18"
+                    distribution: cyclic
+                    eclibr: "0"
+                    ecplug: "1"
+                    erlast: srun
+                    ersbac: "1"
+                    ersrun: "1"
+                    export_env: ALL
+                    get_user_env: "1"
+                    gpus_on_node: "1"
+                    gpus_per_node: "1"
+                    gtids: "0"
+                    job_account: mcsei4132
+                    job_cpus_per_node: "18"
+                    job_end_time: "1773679274"
+                    job_gid: "75844"
+                    job_gpus: "2"
+                    job_id: "20762279"
+                    job_name: derf_s43
+                    job_nodelist: gcn11
+                    job_num_nodes: "1"
+                    job_partition: gpu_a100
+                    job_qos: normal
+                    job_start_time: "1773657674"
+                    job_uid: "76384"
+                    job_user: mbolding
+                    jobid: "20762279"
+                    launch_node_ipaddr: 172.18.62.11
+                    localid: "0"
+                    mem_per_node: "122880"
+                    mpi_type: pmi2
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: gcn11
+                    nprocs: "1"
+                    ntasks: "1"
+                    ntasks_per_node: "1"
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    script_context: prolog_task
+                    srun_comm_host: 172.18.62.11
+                    srun_comm_port: "38621"
+                    step_gpus: "2"
+                    step_gres: gres/cpu:0
+                    step_id: "0"
+                    step_launcher_port: "38621"
+                    step_nodelist: gcn11
+                    step_num_nodes: "1"
+                    step_num_tasks: "1"
+                    step_resv_ports: 17396-17397
+                    step_tasks_per_node: "1"
+                    stepid: "0"
+                    submit_dir: /gpfs/home1/mbolding/visionCNN
+                    submit_host: int4.local.snellius.surf.nl
+                    task_pid: "2542139"
+                    tasks_per_node: "1"
+                    topology_addr: root.ibsw6.gcn11
+                    topology_addr_pattern: switch.switch.node
+                    umask: "0027"
+                startedAt: "2026-03-16T10:41:33.872187Z"
+                writerId: z2ifhucydtlubhexoyz0qtdvr3t4h3nc
+        m: []
+        python_version: 3.11.14
+        t:
+            "1":
+                - 1
+                - 41
+                - 49
+                - 63
+            "2":
+                - 1
+                - 41
+                - 49
+                - 63
+            "3":
+                - 13
+                - 15
+                - 16
+            "4": 3.11.14
+            "5": 0.25.0
+            "12": 0.25.0
+            "13": linux-x86_64
+data:
+    value:
+        backend: pytorch
+        color_jitter: true
+        color_jitter_brightness: 0.2
+        color_jitter_contrast: 0.2
+        color_jitter_hue: 0.05
+        color_jitter_saturation: 0.2
+        dataset: imagenet_ecoset136
+        gaussian_blur: true
+        gpu_transforms: true
+        img_size: 224
+        num_workers: 16
+        persistent_workers: true
+        pin_memory: true
+        prefetch_factor: 2
+        random_grayscale: true
+        random_grayscale_p: 0.1
+        random_rotation: true
+        random_rotation_degrees: 15
+        root: /scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder
+experiment_name:
+    value: resnet50_derf_imagenet_ecoset_ecovalid_seed43
+logging:
+    value:
+        log_dir: logs
+machine:
+    value: snellius
+model:
+    value:
+        name: resnet50_custom
+        norm_layer: derf_vp
+        num_classes: 136
+ood_eval:
+    value:
+        datasets_root: /scratch-nvme/ml-datasets
+        enabled: true
+        imagenet_c:
+            corruptions_during_training:
+                - gaussian_noise
+                - defocus_blur
+                - fog
+                - contrast
+            during_training: true
+            severity_during_training: 3
+        save_predictions: true
+        source_dataset: imagenet_ecoset136
+training:
+    value:
+        batch_size: 256
+        channels_last: true
+        checkpoint_schedule:
+            - - 10
+              - 1
+            - - 20
+              - 2
+            - - 25
+              - 3
+        disable_progress_bar: true
+        epochs: 25
+        label_smoothing: 0.1
+        lr: 0.001
+        min_lr: 1e-05
+        optimizer: adamw
+        scheduler: cosine
+        seed: 43
+        use_amp: true
+        weight_decay: 0.05
+wandb:
+    value:
+        enabled: true
+        group: resnet50-imagenet-ecoset-ecovalid-norm-experiment
+        project: norm-comparison
+        tags:
+            - snellius
+            - imagenet_ecoset136
+            - ecovalid-aug
+            - resnet50
+            - a100
+            - norm-experiment
+            - derf_vp

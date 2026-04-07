@@ -1,0 +1,159 @@
+[rank0]:[W316 14:11:54.802681606 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 14:11:54,921 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 14:11:54,922 [INFO] Config: {'experiment_name': 'resnet50_groupnorm_imagenet_ecoset_ecovalid_seed46', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'groupnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 256, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 46, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['norm-experiment', 'imagenet_ecoset136', 'resnet50', 'snellius', 'a100', 'groupnorm', 'ecovalid-aug']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 14:11:54,922 [INFO] Run directory: logs/resnet50_groupnorm_imagenet_ecoset_ecovalid_seed46
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run jtiol02z
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_groupnorm_imagenet_ecoset_ecovalid_seed46/wandb/run-20260316_141155-jtiol02z
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_groupnorm_imagenet_ecoset_ecovalid_seed46
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/jtiol02z
+2026-03-16 14:11:56,516 [INFO] Weights & Biases logging enabled
+2026-03-16 14:11:56,519 [INFO] Set random seed: 46 (rank offset applied)
+2026-03-16 14:11:56,520 [INFO] Using device: cuda:0
+2026-03-16 14:11:56,520 [INFO] World size: 1
+2026-03-16 14:11:56,856 [INFO] Model: resnet50_custom, Parameters: 23,786,696
+2026-03-16 14:11:56,885 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 14:11:56,926 [INFO] Mixed precision training: True
+2026-03-16 14:12:13,804 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 14:12:13,805 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 14:12:13,805 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 14:12:17,788 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 14:12:17,789 [INFO] Saving per-image predictions to logs/resnet50_groupnorm_imagenet_ecoset_ecovalid_seed46/predictions
+2026-03-16 14:12:17,789 [INFO] Starting training for 25 epochs...
+2026-03-16 14:16:58,347 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 14:17:43,512 [INFO] OOD accuracies: imagenet_c_contrast_s3: 1.6%, imagenet_c_defocus_blur_s3: 1.7%, imagenet_c_fog_s3: 1.0%, imagenet_c_gaussian_noise_s3: 1.7%
+2026-03-16 14:17:43,534 [INFO] Epoch 1/25 | Train Loss: 4.9145, Train Acc: 0.98% | Val Loss: 4.8272, Val Acc: 1.69% | LR: 0.000996 | Time: 325.7s
+2026-03-16 14:17:43,830 [INFO] New best accuracy: 1.69%
+2026-03-16 14:22:21,834 [INFO] Running OOD evaluation (epoch 2)...
+2026-03-16 14:23:07,480 [INFO] OOD accuracies: imagenet_c_contrast_s3: 3.9%, imagenet_c_defocus_blur_s3: 4.5%, imagenet_c_fog_s3: 1.9%, imagenet_c_gaussian_noise_s3: 3.3%
+2026-03-16 14:23:07,495 [INFO] Epoch 2/25 | Train Loss: 4.7075, Train Acc: 3.11% | Val Loss: 4.6572, Val Acc: 3.72% | LR: 0.000984 | Time: 320.8s
+2026-03-16 14:23:07,746 [INFO] New best accuracy: 3.72%
+2026-03-16 14:27:44,918 [INFO] Running OOD evaluation (epoch 3)...
+2026-03-16 14:28:30,096 [INFO] OOD accuracies: imagenet_c_contrast_s3: 6.7%, imagenet_c_defocus_blur_s3: 6.6%, imagenet_c_fog_s3: 3.5%, imagenet_c_gaussian_noise_s3: 5.3%
+2026-03-16 14:28:30,114 [INFO] Epoch 3/25 | Train Loss: 4.4398, Train Acc: 6.56% | Val Loss: 4.4278, Val Acc: 6.75% | LR: 0.000965 | Time: 320.7s
+2026-03-16 14:28:30,367 [INFO] New best accuracy: 6.75%
+2026-03-16 14:33:07,715 [INFO] Running OOD evaluation (epoch 4)...
+2026-03-16 14:33:53,551 [INFO] OOD accuracies: imagenet_c_contrast_s3: 9.2%, imagenet_c_defocus_blur_s3: 8.7%, imagenet_c_fog_s3: 5.4%, imagenet_c_gaussian_noise_s3: 7.5%
+2026-03-16 14:33:53,567 [INFO] Epoch 4/25 | Train Loss: 4.2396, Train Acc: 10.00% | Val Loss: 4.1683, Val Acc: 10.65% | LR: 0.000939 | Time: 321.5s
+2026-03-16 14:33:53,817 [INFO] New best accuracy: 10.65%
+2026-03-16 14:38:30,761 [INFO] Running OOD evaluation (epoch 5)...
+2026-03-16 14:39:16,643 [INFO] OOD accuracies: imagenet_c_contrast_s3: 13.6%, imagenet_c_defocus_blur_s3: 11.0%, imagenet_c_fog_s3: 7.0%, imagenet_c_gaussian_noise_s3: 8.0%
+2026-03-16 14:39:16,660 [INFO] Epoch 5/25 | Train Loss: 4.0321, Train Acc: 14.15% | Val Loss: 3.8480, Val Acc: 17.51% | LR: 0.000905 | Time: 321.2s
+2026-03-16 14:39:16,911 [INFO] New best accuracy: 17.51%
+2026-03-16 14:43:53,928 [INFO] Running OOD evaluation (epoch 6)...
+2026-03-16 14:44:39,240 [INFO] OOD accuracies: imagenet_c_contrast_s3: 16.4%, imagenet_c_defocus_blur_s3: 16.0%, imagenet_c_fog_s3: 10.4%, imagenet_c_gaussian_noise_s3: 9.1%
+2026-03-16 14:44:39,259 [INFO] Epoch 6/25 | Train Loss: 3.8454, Train Acc: 18.16% | Val Loss: 3.7674, Val Acc: 18.66% | LR: 0.000866 | Time: 320.7s
+2026-03-16 14:44:39,509 [INFO] New best accuracy: 18.66%
+2026-03-16 14:49:16,590 [INFO] Running OOD evaluation (epoch 7)...
+2026-03-16 14:50:02,293 [INFO] OOD accuracies: imagenet_c_contrast_s3: 19.6%, imagenet_c_defocus_blur_s3: 19.1%, imagenet_c_fog_s3: 10.4%, imagenet_c_gaussian_noise_s3: 10.5%
+2026-03-16 14:50:02,310 [INFO] Epoch 7/25 | Train Loss: 3.6888, Train Acc: 21.81% | Val Loss: 3.5625, Val Acc: 24.49% | LR: 0.000821 | Time: 321.1s
+2026-03-16 14:50:02,562 [INFO] New best accuracy: 24.49%
+2026-03-16 14:54:39,350 [INFO] Running OOD evaluation (epoch 8)...
+2026-03-16 14:55:24,943 [INFO] OOD accuracies: imagenet_c_contrast_s3: 24.4%, imagenet_c_defocus_blur_s3: 19.3%, imagenet_c_fog_s3: 12.1%, imagenet_c_gaussian_noise_s3: 12.5%
+2026-03-16 14:55:24,960 [INFO] Epoch 8/25 | Train Loss: 3.5533, Train Acc: 24.89% | Val Loss: 3.3097, Val Acc: 30.87% | LR: 0.000770 | Time: 320.7s
+2026-03-16 14:55:25,213 [INFO] New best accuracy: 30.87%
+2026-03-16 15:00:02,035 [INFO] Running OOD evaluation (epoch 9)...
+2026-03-16 15:00:48,482 [INFO] OOD accuracies: imagenet_c_contrast_s3: 28.0%, imagenet_c_defocus_blur_s3: 20.5%, imagenet_c_fog_s3: 15.9%, imagenet_c_gaussian_noise_s3: 14.2%
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 785, in _savez
+    with zipf.open(fname, 'w', force_zip64=True) as fid:
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1234, in close
+    self._fileobj.seek(self._zinfo.header_offset)
+OSError: [Errno 122] Disk quota exceeded
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1925, in close
+    self.fp.seek(self.start_dir)
+OSError: [Errno 122] Disk quota exceeded
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+    main(args)
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 712, in main
+    save_predictions_to_file(
+  File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 235, in save_predictions_to_file
+    np.savez_compressed(filepath, **{
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 753, in savez_compressed
+    _savez(file, args, kwds, True, allow_pickle=allow_pickle)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 790, in _savez
+    zipf.close()
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1930, in close
+    self._fpclose(fp)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 2030, in _fpclose
+    fp.close()
+OSError: [Errno 122] Disk quota exceeded
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 785, in _savez
+[rank0]:     with zipf.open(fname, 'w', force_zip64=True) as fid:
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1234, in close
+[rank0]:     self._fileobj.seek(self._zinfo.header_offset)
+[rank0]: OSError: [Errno 122] Disk quota exceeded
+
+[rank0]: During handling of the above exception, another exception occurred:
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1925, in close
+[rank0]:     self.fp.seek(self.start_dir)
+[rank0]: OSError: [Errno 122] Disk quota exceeded
+
+[rank0]: During handling of the above exception, another exception occurred:
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 712, in main
+[rank0]:     save_predictions_to_file(
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/src/evaluation/ood_eval.py", line 235, in save_predictions_to_file
+[rank0]:     np.savez_compressed(filepath, **{
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 753, in savez_compressed
+[rank0]:     _savez(file, args, kwds, True, allow_pickle=allow_pickle)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/numpy/lib/_npyio_impl.py", line 790, in _savez
+[rank0]:     zipf.close()
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 1930, in close
+[rank0]:     self._fpclose(fp)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/zipfile.py", line 2030, in _fpclose
+[rank0]:     fp.close()
+[rank0]: OSError: [Errno 122] Disk quota exceeded
+E0316 15:03:32.822000 969433 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 969456) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-16_15:03:32
+  host      : gcn28.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 969456)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn28: task 0: Exited with exit code 1
+srun: Terminating StepId=20769806.0

@@ -1,0 +1,22 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 20769800
+Job Name: groupnorm_s43
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 
+Node list: gcn57
+==============================================
+Config: configs/imagenet_ecoset_norm_experiment_ecovalid/groupnorm.yaml
+Additional args: --set training.seed=43 experiment_name=resnet50_groupnorm_imagenet_ecoset_ecovalid_seed43
+==============================================
+Single-node training with 1 GPUs
+Outputs will be saved to: logs
+NCCL version 2.21.5+cuda12.1
+[INFO] Machine: snellius
+[INFO] ImageNet root: /scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mresnet50_groupnorm_imagenet_ecoset_ecovalid_seed43[0m at: [34mhttps://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/fljphmjh[0m

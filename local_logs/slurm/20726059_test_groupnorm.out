@@ -1,0 +1,23 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 20726059
+Job Name: test_groupnorm
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 
+Node list: gcn24
+==============================================
+Config: configs/imagenet_ecoset_norm_experiment_ecovalid/groupnorm.yaml
+Additional args: --set training.epochs=1 wandb.enabled=false experiment_name=test_groupnorm_ecovalid
+==============================================
+Single-node training with 1 GPUs
+Outputs will be saved to: logs
+NCCL version 2.21.5+cuda12.1
+[INFO] Machine: snellius
+[INFO] ImageNet root: /scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder
+==============================================
+Training complete!
+==============================================

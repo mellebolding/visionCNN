@@ -1,0 +1,85 @@
+[rank0]:[W316 13:59:09.378720285 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 13:59:10,098 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 13:59:10,099 [INFO] Config: {'experiment_name': 'resnet50_derf_imagenet_ecoset_ecovalid_seed46', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'derf_vp'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 46, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['derf_vp', 'resnet50', 'norm-experiment', 'ecovalid-aug', 'a100', 'imagenet_ecoset136', 'snellius']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 13:59:10,099 [INFO] Run directory: logs/resnet50_derf_imagenet_ecoset_ecovalid_seed46
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run ue2hwrgi
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_derf_imagenet_ecoset_ecovalid_seed46/wandb/run-20260316_135910-ue2hwrgi
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_derf_imagenet_ecoset_ecovalid_seed46
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/ue2hwrgi
+2026-03-16 13:59:11,600 [INFO] Weights & Biases logging enabled
+2026-03-16 13:59:11,602 [INFO] Set random seed: 46 (rank offset applied)
+2026-03-16 13:59:11,603 [INFO] Using device: cuda:0
+2026-03-16 13:59:11,603 [INFO] World size: 1
+2026-03-16 13:59:11,939 [INFO] Model: resnet50_custom, Parameters: 23,786,802
+2026-03-16 13:59:11,971 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 13:59:12,012 [INFO] Mixed precision training: True
+2026-03-16 13:59:32,252 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 13:59:32,253 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 13:59:32,253 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-03-16 13:59:34,082 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 13:59:34,083 [INFO] Saving per-image predictions to logs/resnet50_derf_imagenet_ecoset_ecovalid_seed46/predictions
+2026-03-16 13:59:34,084 [INFO] Starting training for 25 epochs...
+2026-03-16 14:07:59,409 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 14:08:40,594 [INFO] OOD accuracies: imagenet_c_contrast_s3: 1.5%, imagenet_c_defocus_blur_s3: 1.5%, imagenet_c_fog_s3: 0.9%, imagenet_c_gaussian_noise_s3: 1.6%
+2026-03-16 14:08:41,994 [INFO] Epoch 1/25 | Train Loss: 4.9296, Train Acc: 0.87% | Val Loss: 4.8698, Val Acc: 1.51% | LR: 0.000996 | Time: 547.9s
+2026-03-16 14:08:44,127 [INFO] New best accuracy: 1.51%
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 279, in copyfile
+    copyfileobj(fsrc, fdst)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 200, in copyfileobj
+    fdst_write(buf)
+OSError: [Errno 122] Disk quota exceeded
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+    main(args)
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 790, in main
+    artifact.add_file(os.path.join(run_dir, "best.pt"))
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/_validators.py", line 272, in wrapper
+    return method(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1488, in add_file
+    return self._add_local_file(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1769, in _add_local_file
+    shutil.copyfile(path, staging_path)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 258, in copyfile
+    with open(dst, 'wb') as fdst:
+OSError: [Errno 122] Disk quota exceeded
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 279, in copyfile
+[rank0]:     copyfileobj(fsrc, fdst)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 200, in copyfileobj
+[rank0]:     fdst_write(buf)
+[rank0]: OSError: [Errno 122] Disk quota exceeded
+
+[rank0]: During handling of the above exception, another exception occurred:
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 790, in main
+[rank0]:     artifact.add_file(os.path.join(run_dir, "best.pt"))
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/_validators.py", line 272, in wrapper
+[rank0]:     return method(self, *args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1488, in add_file
+[rank0]:     return self._add_local_file(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1769, in _add_local_file
+[rank0]:     shutil.copyfile(path, staging_path)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 258, in copyfile
+[rank0]:     with open(dst, 'wb') as fdst:
+[rank0]: OSError: [Errno 122] Disk quota exceeded
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-03-16T14:11:04.034] error: *** JOB 20769606 ON gcn48 CANCELLED AT 2026-03-16T14:11:04 DUE to SIGNAL Terminated ***
+[2026-03-16T14:11:04.035] error: *** STEP 20769606.0 ON gcn48 CANCELLED AT 2026-03-16T14:11:04 DUE to SIGNAL Terminated ***
+W0316 14:11:04.035000 3523944 site-packages/torch/distributed/elastic/agent/server/api.py:704] Received 15 death signal, shutting down workers
+W0316 14:11:04.036000 3523944 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 3523964 closing signal SIGTERM

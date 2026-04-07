@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../../../scratch-nvme/ml-datasets/imagenet"
+		}
+	],
+	"settings": {}
+}

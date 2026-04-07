@@ -1,0 +1,148 @@
+[rank0]:[W316 11:28:38.711088069 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-16 11:28:38,262 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-16 11:28:38,263 [INFO] Config: {'experiment_name': 'resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'rmsnorm'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 256, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 45, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/scratch-nvme/ml-datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['resnet50', 'snellius', 'rmsnorm', 'ecovalid-aug', 'a100', 'imagenet_ecoset136', 'norm-experiment']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-16 11:28:38,263 [INFO] Run directory: logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run rjuj1r27
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45/wandb/run-20260316_112838-rjuj1r27
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/rjuj1r27
+2026-03-16 11:28:39,607 [INFO] Weights & Biases logging enabled
+2026-03-16 11:28:39,610 [INFO] Set random seed: 45 (rank offset applied)
+2026-03-16 11:28:39,610 [INFO] Using device: cuda:0
+2026-03-16 11:28:39,610 [INFO] World size: 1
+2026-03-16 11:28:39,946 [INFO] Model: resnet50_custom, Parameters: 23,760,136
+2026-03-16 11:28:39,977 [INFO] Using channels-last (NHWC) memory format
+2026-03-16 11:28:40,010 [INFO] Mixed precision training: True
+2026-03-16 11:29:14,025 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-16 11:29:14,026 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-16 11:29:14,026 [INFO] Effective batch size: 256 (256 x 1 GPUs)
+2026-03-16 11:29:21,606 [INFO] OOD evaluation enabled: 4 datasets loaded (imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-16 11:29:21,608 [INFO] Saving per-image predictions to logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45/predictions
+2026-03-16 11:29:21,608 [INFO] Starting training for 25 epochs...
+2026-03-16 11:35:14,711 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-16 11:35:59,941 [INFO] OOD accuracies: imagenet_c_contrast_s3: 2.8%, imagenet_c_defocus_blur_s3: 4.2%, imagenet_c_fog_s3: 1.8%, imagenet_c_gaussian_noise_s3: 4.3%
+2026-03-16 11:35:59,958 [INFO] Epoch 1/25 | Train Loss: 4.8230, Train Acc: 1.92% | Val Loss: 4.6028, Val Acc: 4.50% | LR: 0.000996 | Time: 398.3s
+2026-03-16 11:36:00,425 [INFO] New best accuracy: 4.50%
+2026-03-16 11:41:50,608 [INFO] Running OOD evaluation (epoch 2)...
+2026-03-16 11:42:36,695 [INFO] OOD accuracies: imagenet_c_contrast_s3: 4.8%, imagenet_c_defocus_blur_s3: 8.2%, imagenet_c_fog_s3: 5.8%, imagenet_c_gaussian_noise_s3: 9.3%
+2026-03-16 11:42:36,710 [INFO] Epoch 2/25 | Train Loss: 4.5224, Train Acc: 5.85% | Val Loss: 4.2175, Val Acc: 11.21% | LR: 0.000984 | Time: 393.3s
+2026-03-16 11:42:36,951 [INFO] New best accuracy: 11.21%
+2026-03-16 11:48:25,459 [INFO] Running OOD evaluation (epoch 3)...
+2026-03-16 11:49:11,272 [INFO] OOD accuracies: imagenet_c_contrast_s3: 12.0%, imagenet_c_defocus_blur_s3: 14.8%, imagenet_c_fog_s3: 8.3%, imagenet_c_gaussian_noise_s3: 11.4%
+2026-03-16 11:49:11,287 [INFO] Epoch 3/25 | Train Loss: 4.1489, Train Acc: 12.81% | Val Loss: 3.8097, Val Acc: 18.68% | LR: 0.000965 | Time: 392.8s
+2026-03-16 11:49:11,529 [INFO] New best accuracy: 18.68%
+2026-03-16 11:55:00,574 [INFO] Running OOD evaluation (epoch 4)...
+2026-03-16 11:55:45,874 [INFO] OOD accuracies: imagenet_c_contrast_s3: 14.1%, imagenet_c_defocus_blur_s3: 16.6%, imagenet_c_fog_s3: 9.7%, imagenet_c_gaussian_noise_s3: 11.6%
+2026-03-16 11:55:45,891 [INFO] Epoch 4/25 | Train Loss: 3.8491, Train Acc: 18.83% | Val Loss: 3.4944, Val Acc: 26.37% | LR: 0.000939 | Time: 392.7s
+2026-03-16 11:55:46,131 [INFO] New best accuracy: 26.37%
+2026-03-16 12:01:35,274 [INFO] Running OOD evaluation (epoch 5)...
+2026-03-16 12:02:21,042 [INFO] OOD accuracies: imagenet_c_contrast_s3: 18.5%, imagenet_c_defocus_blur_s3: 24.2%, imagenet_c_fog_s3: 13.0%, imagenet_c_gaussian_noise_s3: 15.7%
+2026-03-16 12:02:21,285 [INFO] Epoch 5/25 | Train Loss: 3.6209, Train Acc: 23.89% | Val Loss: 3.3847, Val Acc: 29.24% | LR: 0.000905 | Time: 393.6s
+2026-03-16 12:02:21,525 [INFO] New best accuracy: 29.24%
+2026-03-16 12:08:10,361 [INFO] Running OOD evaluation (epoch 6)...
+2026-03-16 12:08:55,902 [INFO] OOD accuracies: imagenet_c_contrast_s3: 22.9%, imagenet_c_defocus_blur_s3: 23.7%, imagenet_c_fog_s3: 14.6%, imagenet_c_gaussian_noise_s3: 14.8%
+2026-03-16 12:08:55,919 [INFO] Epoch 6/25 | Train Loss: 3.4429, Train Acc: 28.16% | Val Loss: 3.1373, Val Acc: 35.15% | LR: 0.000866 | Time: 392.8s
+2026-03-16 12:08:56,157 [INFO] New best accuracy: 35.15%
+2026-03-16 12:14:44,793 [INFO] Running OOD evaluation (epoch 7)...
+2026-03-16 12:15:30,071 [INFO] OOD accuracies: imagenet_c_contrast_s3: 24.0%, imagenet_c_defocus_blur_s3: 29.2%, imagenet_c_fog_s3: 20.0%, imagenet_c_gaussian_noise_s3: 12.9%
+2026-03-16 12:15:30,087 [INFO] Epoch 7/25 | Train Loss: 3.3038, Train Acc: 31.54% | Val Loss: 3.0681, Val Acc: 37.31% | LR: 0.000821 | Time: 392.3s
+2026-03-16 12:15:30,328 [INFO] New best accuracy: 37.31%
+2026-03-16 12:21:19,400 [INFO] Running OOD evaluation (epoch 8)...
+2026-03-16 12:22:04,988 [INFO] OOD accuracies: imagenet_c_contrast_s3: 28.2%, imagenet_c_defocus_blur_s3: 26.8%, imagenet_c_fog_s3: 16.5%, imagenet_c_gaussian_noise_s3: 18.6%
+2026-03-16 12:22:05,005 [INFO] Epoch 8/25 | Train Loss: 3.1812, Train Acc: 34.52% | Val Loss: 2.9336, Val Acc: 40.94% | LR: 0.000770 | Time: 393.1s
+2026-03-16 12:22:05,247 [INFO] New best accuracy: 40.94%
+2026-03-16 12:27:53,805 [INFO] Running OOD evaluation (epoch 9)...
+2026-03-16 12:28:39,287 [INFO] OOD accuracies: imagenet_c_contrast_s3: 30.2%, imagenet_c_defocus_blur_s3: 28.8%, imagenet_c_fog_s3: 21.3%, imagenet_c_gaussian_noise_s3: 12.4%
+2026-03-16 12:28:39,304 [INFO] Epoch 9/25 | Train Loss: 3.0763, Train Acc: 37.21% | Val Loss: 2.8225, Val Acc: 43.85% | LR: 0.000716 | Time: 392.5s
+2026-03-16 12:28:39,543 [INFO] New best accuracy: 43.85%
+2026-03-16 12:34:27,614 [INFO] Running OOD evaluation (epoch 10)...
+2026-03-16 12:35:12,879 [INFO] OOD accuracies: imagenet_c_contrast_s3: 30.6%, imagenet_c_defocus_blur_s3: 26.5%, imagenet_c_fog_s3: 18.8%, imagenet_c_gaussian_noise_s3: 17.9%
+2026-03-16 12:35:12,896 [INFO] Epoch 10/25 | Train Loss: 2.9816, Train Acc: 39.74% | Val Loss: 2.7277, Val Acc: 46.10% | LR: 0.000658 | Time: 391.8s
+2026-03-16 12:35:13,135 [INFO] New best accuracy: 46.10%
+2026-03-16 12:40:55,612 [INFO] Epoch 11/25 | Train Loss: 2.9018, Train Acc: 41.74% | (validation skipped) | LR: 0.000598 | Time: 340.9s
+2026-03-16 12:46:43,091 [INFO] Running OOD evaluation (epoch 12)...
+2026-03-16 12:47:28,385 [INFO] OOD accuracies: imagenet_c_contrast_s3: 35.1%, imagenet_c_defocus_blur_s3: 32.0%, imagenet_c_fog_s3: 22.1%, imagenet_c_gaussian_noise_s3: 14.8%
+2026-03-16 12:47:29,180 [INFO] Epoch 12/25 | Train Loss: 2.8205, Train Acc: 43.80% | Val Loss: 2.5591, Val Acc: 50.47% | LR: 0.000536 | Time: 393.6s
+2026-03-16 12:47:29,859 [INFO] New best accuracy: 50.47%
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+    main(args)
+  File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 790, in main
+    artifact.add_file(os.path.join(run_dir, "best.pt"))
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/_validators.py", line 272, in wrapper
+    return method(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1488, in add_file
+    return self._add_local_file(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1769, in _add_local_file
+    shutil.copyfile(path, staging_path)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 269, in copyfile
+    _fastcopy_sendfile(fsrc, fdst)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 164, in _fastcopy_sendfile
+    raise err
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 144, in _fastcopy_sendfile
+    sent = os.sendfile(outfd, infd, offset, blocksize)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 122] Disk quota exceeded: 'logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45/best.pt' -> '/home/mbolding/.local/share/wandb/artifacts/staging/tmp_v32j907'
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 836, in <module>
+[rank0]:     main(args)
+[rank0]:   File "/gpfs/home1/mbolding/visionCNN/scripts/train.py", line 790, in main
+[rank0]:     artifact.add_file(os.path.join(run_dir, "best.pt"))
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/_validators.py", line 272, in wrapper
+[rank0]:     return method(self, *args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1488, in add_file
+[rank0]:     return self._add_local_file(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 1769, in _add_local_file
+[rank0]:     shutil.copyfile(path, staging_path)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 269, in copyfile
+[rank0]:     _fastcopy_sendfile(fsrc, fdst)
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 164, in _fastcopy_sendfile
+[rank0]:     raise err
+[rank0]:   File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/shutil.py", line 144, in _fastcopy_sendfile
+[rank0]:     sent = os.sendfile(outfd, infd, offset, blocksize)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: OSError: [Errno 122] Disk quota exceeded: 'logs/resnet50_rmsnorm_imagenet_ecoset_ecovalid_seed45/best.pt' -> '/home/mbolding/.local/share/wandb/artifacts/staging/tmp_v32j907'
+E0316 12:50:14.686000 292663 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 0 (pid: 292671) of binary: /gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/python
+Traceback (most recent call last):
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/bin/torchrun", line 33, in <module>
+    sys.exit(load_entry_point('torch==2.5.1', 'console_scripts', 'torchrun')())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 919, in main
+    run(args)
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/run.py", line 910, in run
+    elastic_launch(
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-03-16_12:50:14
+  host      : gcn60.local.snellius.surf.nl
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 292671)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+srun: error: gcn60: task 0: Exited with exit code 1
+srun: Terminating StepId=20761757.0

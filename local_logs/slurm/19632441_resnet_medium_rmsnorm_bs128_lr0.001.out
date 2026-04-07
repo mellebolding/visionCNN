@@ -1,0 +1,23 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 19632441
+Job Name: resnet_medium_rmsnorm_bs128_lr0.001
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 18
+Node list: gcn32
+==============================================
+Config: configs/norm_experiment_extended.yaml
+Additional args: --set model.name=resnet_medium model.norm_layer=rmsnorm training.batch_size=128 training.lr=0.001 experiment_name=resnet_medium_rmsnorm_bs128_lr0.001
+==============================================
+Single-node training with 1 GPUs
+Outputs will be saved to: /projects/prjs0771/melle/projects/visionCNN/logs
+Error importing huggingface_hub.hf_api: No module named 'httpcore'
+NCCL version 2.18.3+cuda12.1
+[INFO] Auto-detected ImageNet root: /scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder
+==============================================
+Training complete!
+==============================================

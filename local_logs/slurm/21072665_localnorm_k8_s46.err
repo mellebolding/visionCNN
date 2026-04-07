@@ -1,0 +1,62 @@
+[rank0]:[W323 10:37:17.527625693 ProcessGroupNCCL.cpp:4115] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect.Specify device_ids in barrier() to force use of a particular device,or call init_process_group() with a device_id.
+2026-03-23 10:37:18,213 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-03-23 10:37:18,213 [INFO] Config: {'experiment_name': 'resnet50_localnorm_k8_imagenet_ecoset_ecovalid_seed46', 'model': {'name': 'resnet50_custom', 'num_classes': 136, 'norm_layer': 'localnorm_k8'}, 'data': {'dataset': 'imagenet_ecoset136', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True, 'random_rotation': True, 'random_rotation_degrees': 15, 'color_jitter': True, 'color_jitter_brightness': 0.2, 'color_jitter_contrast': 0.2, 'color_jitter_saturation': 0.2, 'color_jitter_hue': 0.05, 'gaussian_blur': True, 'random_grayscale': True, 'random_grayscale_p': 0.1}, 'training': {'epochs': 25, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 46, 'checkpoint_schedule': [[10, 1], [20, 2], [25, 3]], 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'ood_eval': {'enabled': True, 'source_dataset': 'imagenet_ecoset136', 'datasets_root': '/projects/prjs0771/melle/datasets', 'imagenet_c': {'during_training': True, 'corruptions_during_training': ['gaussian_noise', 'defocus_blur', 'fog', 'contrast'], 'severity_during_training': 3}, 'save_predictions': True}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'group': 'resnet50-imagenet-ecoset-ecovalid-norm-experiment', 'tags': ['resnet50', 'localnorm_k8', 'norm-experiment', 'imagenet_ecoset136', 'ecovalid-aug', 'snellius', 'a100']}, '_machine': {'log_dir': '/projects/prjs0771/melle/projects/visionCNN/logs'}}
+2026-03-23 10:37:18,213 [INFO] Run directory: logs/resnet50_localnorm_k8_imagenet_ecoset_ecovalid_seed46
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/mbolding/.netrc.
+wandb: Currently logged in as: mellebolding (mellebolding-university-of-amsterdam) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run xu3842d7
+wandb: Tracking run with wandb version 0.25.0
+wandb: Run data is saved locally in logs/resnet50_localnorm_k8_imagenet_ecoset_ecovalid_seed46/wandb/run-20260323_103718-xu3842d7
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run resnet50_localnorm_k8_imagenet_ecoset_ecovalid_seed46
+wandb: ⭐️ View project at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison
+wandb: 🚀 View run at https://wandb.ai/mellebolding-university-of-amsterdam/norm-comparison/runs/xu3842d7
+2026-03-23 10:37:19,620 [INFO] Weights & Biases logging enabled
+2026-03-23 10:37:19,624 [INFO] Set random seed: 46 (rank offset applied)
+2026-03-23 10:37:19,624 [INFO] Using device: cuda:0
+2026-03-23 10:37:19,624 [INFO] World size: 1
+2026-03-23 10:37:19,962 [INFO] Model: resnet50_custom, Parameters: 24,158,536
+2026-03-23 10:37:19,997 [INFO] Using channels-last (NHWC) memory format
+2026-03-23 10:37:20,043 [INFO] Mixed precision training: True
+2026-03-23 10:37:36,680 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-03-23 10:37:36,681 [INFO] Train samples: 176411, Val samples: 6800
+2026-03-23 10:37:36,681 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-03-23 10:37:40,748 [INFO] OOD evaluation enabled: 7 datasets loaded (imagenet_r, imagenet_sketch, imagenet_a, imagenet_c_gaussian_noise_s3, imagenet_c_defocus_blur_s3, imagenet_c_fog_s3, imagenet_c_contrast_s3)
+2026-03-23 10:37:40,749 [INFO] Saving per-image predictions to logs/resnet50_localnorm_k8_imagenet_ecoset_ecovalid_seed46/predictions
+2026-03-23 10:37:40,749 [INFO] Starting training for 25 epochs...
+2026-03-23 10:47:59,868 [INFO] Running OOD evaluation (epoch 1)...
+2026-03-23 10:49:06,921 [INFO] OOD accuracies: imagenet_a: 0.8%, imagenet_c_contrast_s3: 3.0%, imagenet_c_defocus_blur_s3: 5.9%, imagenet_c_fog_s3: 3.2%, imagenet_c_gaussian_noise_s3: 5.9%, imagenet_r: 3.3%, imagenet_sketch: 2.9%
+2026-03-23 10:49:07,006 [INFO] Epoch 1/25 | Train Loss: 4.5802, Train Acc: 5.49% | Val Loss: 4.3976, Val Acc: 10.88% | LR: 0.000996 | Time: 686.2s
+2026-03-23 10:49:07,337 [INFO] New best accuracy: 10.88%
+2026-03-23 10:59:24,582 [INFO] Running OOD evaluation (epoch 2)...
+2026-03-23 11:00:34,100 [INFO] OOD accuracies: imagenet_a: 1.4%, imagenet_c_contrast_s3: 3.1%, imagenet_c_defocus_blur_s3: 7.8%, imagenet_c_fog_s3: 4.0%, imagenet_c_gaussian_noise_s3: 10.2%, imagenet_r: 4.5%, imagenet_sketch: 3.1%
+2026-03-23 11:00:34,179 [INFO] Epoch 2/25 | Train Loss: 4.1493, Train Acc: 12.51% | Val Loss: 3.9493, Val Acc: 16.62% | LR: 0.000984 | Time: 683.5s
+2026-03-23 11:00:34,518 [INFO] New best accuracy: 16.62%
+2026-03-23 11:10:51,768 [INFO] Running OOD evaluation (epoch 3)...
+2026-03-23 11:11:53,337 [INFO] OOD accuracies: imagenet_a: 2.4%, imagenet_c_contrast_s3: 7.9%, imagenet_c_defocus_blur_s3: 13.3%, imagenet_c_fog_s3: 11.8%, imagenet_c_gaussian_noise_s3: 6.3%, imagenet_r: 7.4%, imagenet_sketch: 7.3%
+2026-03-23 11:11:53,369 [INFO] Epoch 3/25 | Train Loss: 3.8860, Train Acc: 17.68% | Val Loss: 3.6022, Val Acc: 26.85% | LR: 0.000965 | Time: 676.8s
+2026-03-23 11:11:53,704 [INFO] New best accuracy: 26.85%
+2026-03-23 11:22:11,257 [INFO] Running OOD evaluation (epoch 4)...
+2026-03-23 11:23:17,994 [INFO] OOD accuracies: imagenet_a: 1.9%, imagenet_c_contrast_s3: 13.4%, imagenet_c_defocus_blur_s3: 15.6%, imagenet_c_fog_s3: 15.5%, imagenet_c_gaussian_noise_s3: 10.5%, imagenet_r: 8.2%, imagenet_sketch: 7.1%
+2026-03-23 11:23:18,108 [INFO] Epoch 4/25 | Train Loss: 3.6303, Train Acc: 23.57% | Val Loss: 3.5651, Val Acc: 29.81% | LR: 0.000939 | Time: 682.5s
+2026-03-23 11:23:18,453 [INFO] New best accuracy: 29.81%
+2026-03-23 11:33:36,439 [INFO] Running OOD evaluation (epoch 5)...
+2026-03-23 11:34:40,169 [INFO] OOD accuracies: imagenet_a: 2.4%, imagenet_c_contrast_s3: 14.0%, imagenet_c_defocus_blur_s3: 13.5%, imagenet_c_fog_s3: 17.6%, imagenet_c_gaussian_noise_s3: 10.2%, imagenet_r: 9.6%, imagenet_sketch: 11.8%
+2026-03-23 11:34:40,230 [INFO] Epoch 5/25 | Train Loss: 3.4366, Train Acc: 28.26% | Val Loss: 3.0507, Val Acc: 38.06% | LR: 0.000905 | Time: 679.8s
+2026-03-23 11:34:40,560 [INFO] New best accuracy: 38.06%
+2026-03-23 11:45:00,106 [INFO] Running OOD evaluation (epoch 6)...
+2026-03-23 11:46:01,511 [INFO] OOD accuracies: imagenet_a: 2.5%, imagenet_c_contrast_s3: 15.2%, imagenet_c_defocus_blur_s3: 18.1%, imagenet_c_fog_s3: 21.4%, imagenet_c_gaussian_noise_s3: 14.1%, imagenet_r: 8.5%, imagenet_sketch: 6.5%
+2026-03-23 11:46:01,553 [INFO] Epoch 6/25 | Train Loss: 3.2550, Train Acc: 32.85% | Val Loss: 3.0727, Val Acc: 40.21% | LR: 0.000866 | Time: 679.1s
+2026-03-23 11:46:01,911 [INFO] New best accuracy: 40.21%
+2026-03-23 11:56:20,582 [INFO] Running OOD evaluation (epoch 7)...
+2026-03-23 11:57:24,506 [INFO] OOD accuracies: imagenet_a: 2.3%, imagenet_c_contrast_s3: 20.2%, imagenet_c_defocus_blur_s3: 18.4%, imagenet_c_fog_s3: 23.0%, imagenet_c_gaussian_noise_s3: 13.1%, imagenet_r: 10.0%, imagenet_sketch: 14.0%
+2026-03-23 11:57:24,600 [INFO] Epoch 7/25 | Train Loss: 3.1009, Train Acc: 36.75% | Val Loss: 2.7764, Val Acc: 44.88% | LR: 0.000821 | Time: 680.7s
+2026-03-23 11:57:24,917 [INFO] New best accuracy: 44.88%
+2026-03-23 12:07:42,668 [INFO] Running OOD evaluation (epoch 8)...
+2026-03-23 12:08:48,007 [INFO] OOD accuracies: imagenet_a: 2.7%, imagenet_c_contrast_s3: 19.6%, imagenet_c_defocus_blur_s3: 17.5%, imagenet_c_fog_s3: 25.0%, imagenet_c_gaussian_noise_s3: 15.0%, imagenet_r: 12.2%, imagenet_sketch: 14.8%
+2026-03-23 12:08:48,089 [INFO] Epoch 8/25 | Train Loss: 2.9735, Train Acc: 40.20% | Val Loss: 2.5647, Val Acc: 50.65% | LR: 0.000770 | Time: 681.2s
+2026-03-23 12:08:48,430 [INFO] New best accuracy: 50.65%
+2026-03-23 12:19:05,694 [INFO] Running OOD evaluation (epoch 9)...
+2026-03-23 12:20:07,331 [INFO] OOD accuracies: imagenet_a: 2.5%, imagenet_c_contrast_s3: 22.7%, imagenet_c_defocus_blur_s3: 20.5%, imagenet_c_fog_s3: 27.0%, imagenet_c_gaussian_noise_s3: 18.4%, imagenet_r: 14.1%, imagenet_sketch: 15.7%
+2026-03-23 12:20:07,371 [INFO] Epoch 9/25 | Train Loss: 2.8624, Train Acc: 43.04% | Val Loss: 2.5314, Val Acc: 51.84% | LR: 0.000716 | Time: 676.9s
+2026-03-23 12:20:07,706 [INFO] New best accuracy: 51.84%

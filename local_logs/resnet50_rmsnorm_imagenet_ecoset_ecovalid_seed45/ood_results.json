@@ -1,0 +1,14 @@
+{
+  "ood/imagenet_r/acc": 13.616634702735439,
+  "ood/imagenet_r/loss": 4.909833298305143,
+  "ood/imagenet_r/n_samples": 9907,
+  "ood/imagenet_r/n_classes": 57,
+  "ood/imagenet_sketch/acc": 16.845151953690305,
+  "ood/imagenet_sketch/loss": 4.286078310357851,
+  "ood/imagenet_sketch/n_samples": 6910,
+  "ood/imagenet_sketch/n_classes": 136,
+  "ood/imagenet_a/acc": 3.0735455543358947,
+  "ood/imagenet_a/loss": 5.426147795403959,
+  "ood/imagenet_a/n_samples": 1822,
+  "ood/imagenet_a/n_classes": 48
+}

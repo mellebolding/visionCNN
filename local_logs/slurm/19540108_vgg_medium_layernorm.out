@@ -1,0 +1,20 @@
+==============================================
+SLURM Job Information
+==============================================
+Job ID: 19540108
+Job Name: vgg_medium_layernorm
+Partition: gpu_a100
+Nodes: 1
+Tasks per node: 1
+GPUs per node: 1
+CPUs per task: 18
+Node list: gcn64
+==============================================
+Config: configs/norm_experiment.yaml
+Additional args: --set model.name=vgg_medium model.norm_layer=layernorm experiment_name=vgg_medium_layernorm --resume /projects/prjs0771/melle/projects/visionCNN/logs/vgg_medium_layernorm/last.pt
+==============================================
+Single-node training with 1 GPUs
+Outputs will be saved to: /projects/prjs0771/melle/projects/visionCNN/logs
+Error importing huggingface_hub.hf_api: No module named 'httpcore'
+NCCL version 2.18.3+cuda12.1
+[INFO] Auto-detected ImageNet root: /scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder

@@ -1,0 +1,78 @@
+[2026-02-16 10:32:57,814] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-16 10:33:02,513 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-16 10:33:02,513 [INFO] Config: {'experiment_name': 'convnext_small_batchnorm', 'model': {'name': 'convnext_small', 'num_classes': 100, 'norm_layer': 'batchnorm'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'tags': ['norm-experiment', 'imagenet100']}}
+2026-02-16 10:33:02,513 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/convnext_small_batchnorm
+2026-02-16 10:33:02,514 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-16 10:33:02,514 [INFO] Using device: cuda:0
+2026-02-16 10:33:02,514 [INFO] World size: 1
+2026-02-16 10:33:03,178 [INFO] Model: convnext_small, Parameters: 8,604,580
+2026-02-16 10:33:03,181 [INFO] Using channels-last (NHWC) memory format
+2026-02-16 10:33:03,230 [INFO] Mixed precision training: True
+2026-02-16 10:34:21,907 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-16 10:34:21,908 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-16 10:34:21,908 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-16 10:34:21,908 [INFO] Starting training for 50 epochs...
+2026-02-16 10:36:09,288 [INFO] Epoch 1/50 | Train Loss: 3.8786, Train Acc: 15.10% | (validation skipped) | LR: 0.000999 | Time: 107.4s
+2026-02-16 10:37:49,800 [INFO] Epoch 2/50 | Train Loss: 3.1830, Train Acc: 31.43% | (validation skipped) | LR: 0.000996 | Time: 100.5s
+2026-02-16 10:39:30,276 [INFO] Epoch 3/50 | Train Loss: 2.8260, Train Acc: 41.30% | (validation skipped) | LR: 0.000991 | Time: 100.5s
+2026-02-16 10:41:10,886 [INFO] Epoch 4/50 | Train Loss: 2.5859, Train Acc: 48.31% | (validation skipped) | LR: 0.000984 | Time: 100.6s
+2026-02-16 10:42:57,059 [INFO] Epoch 5/50 | Train Loss: 2.3976, Train Acc: 53.64% | Val Loss: 2.1125, Val Acc: 61.66% | LR: 0.000976 | Time: 106.1s
+2026-02-16 10:42:57,288 [INFO] New best accuracy: 61.66%
+2026-02-16 10:44:37,848 [INFO] Epoch 6/50 | Train Loss: 2.2684, Train Acc: 57.51% | (validation skipped) | LR: 0.000965 | Time: 100.6s
+2026-02-16 10:46:18,565 [INFO] Epoch 7/50 | Train Loss: 2.1592, Train Acc: 60.61% | (validation skipped) | LR: 0.000953 | Time: 100.7s
+2026-02-16 10:47:59,171 [INFO] Epoch 8/50 | Train Loss: 2.0732, Train Acc: 63.24% | (validation skipped) | LR: 0.000939 | Time: 100.6s
+2026-02-16 10:49:39,739 [INFO] Epoch 9/50 | Train Loss: 2.0067, Train Acc: 65.14% | (validation skipped) | LR: 0.000923 | Time: 100.6s
+2026-02-16 10:51:24,886 [INFO] Epoch 10/50 | Train Loss: 1.9377, Train Acc: 67.20% | Val Loss: 1.7608, Val Acc: 72.90% | LR: 0.000905 | Time: 105.1s
+2026-02-16 10:51:25,149 [INFO] New best accuracy: 72.90%
+2026-02-16 10:53:05,915 [INFO] Epoch 11/50 | Train Loss: 1.8806, Train Acc: 68.84% | (validation skipped) | LR: 0.000886 | Time: 100.6s
+2026-02-16 10:54:46,482 [INFO] Epoch 12/50 | Train Loss: 1.8304, Train Acc: 70.41% | (validation skipped) | LR: 0.000866 | Time: 100.6s
+2026-02-16 10:56:26,913 [INFO] Epoch 13/50 | Train Loss: 1.7890, Train Acc: 71.65% | (validation skipped) | LR: 0.000844 | Time: 100.4s
+2026-02-16 10:58:07,405 [INFO] Epoch 14/50 | Train Loss: 1.7455, Train Acc: 72.90% | (validation skipped) | LR: 0.000821 | Time: 100.5s
+2026-02-16 10:59:52,253 [INFO] Epoch 15/50 | Train Loss: 1.7098, Train Acc: 74.05% | Val Loss: 1.5762, Val Acc: 77.66% | LR: 0.000796 | Time: 104.8s
+2026-02-16 10:59:52,495 [INFO] New best accuracy: 77.66%
+2026-02-16 11:01:32,867 [INFO] Epoch 16/50 | Train Loss: 1.6734, Train Acc: 75.01% | (validation skipped) | LR: 0.000770 | Time: 100.4s
+2026-02-16 11:03:13,506 [INFO] Epoch 17/50 | Train Loss: 1.6411, Train Acc: 76.10% | (validation skipped) | LR: 0.000743 | Time: 100.6s
+2026-02-16 11:04:53,843 [INFO] Epoch 18/50 | Train Loss: 1.6119, Train Acc: 76.87% | (validation skipped) | LR: 0.000716 | Time: 100.3s
+2026-02-16 11:06:34,358 [INFO] Epoch 19/50 | Train Loss: 1.5797, Train Acc: 77.79% | (validation skipped) | LR: 0.000687 | Time: 100.5s
+2026-02-16 11:08:19,431 [INFO] Epoch 20/50 | Train Loss: 1.5527, Train Acc: 78.72% | Val Loss: 1.4786, Val Acc: 81.04% | LR: 0.000658 | Time: 105.0s
+2026-02-16 11:08:19,633 [INFO] New best accuracy: 81.04%
+2026-02-16 11:10:00,512 [INFO] Epoch 21/50 | Train Loss: 1.5267, Train Acc: 79.52% | (validation skipped) | LR: 0.000628 | Time: 100.7s
+2026-02-16 11:11:41,093 [INFO] Epoch 22/50 | Train Loss: 1.5006, Train Acc: 80.28% | (validation skipped) | LR: 0.000598 | Time: 100.6s
+2026-02-16 11:13:21,537 [INFO] Epoch 23/50 | Train Loss: 1.4792, Train Acc: 80.86% | (validation skipped) | LR: 0.000567 | Time: 100.4s
+2026-02-16 11:15:02,192 [INFO] Epoch 24/50 | Train Loss: 1.4537, Train Acc: 81.66% | (validation skipped) | LR: 0.000536 | Time: 100.6s
+2026-02-16 11:16:47,216 [INFO] Epoch 25/50 | Train Loss: 1.4270, Train Acc: 82.64% | Val Loss: 1.4256, Val Acc: 82.26% | LR: 0.000505 | Time: 105.0s
+2026-02-16 11:16:47,436 [INFO] New best accuracy: 82.26%
+2026-02-16 11:18:27,901 [INFO] Epoch 26/50 | Train Loss: 1.4082, Train Acc: 83.05% | (validation skipped) | LR: 0.000474 | Time: 100.5s
+2026-02-16 11:20:08,522 [INFO] Epoch 27/50 | Train Loss: 1.3918, Train Acc: 83.68% | (validation skipped) | LR: 0.000443 | Time: 100.6s
+2026-02-16 11:21:49,030 [INFO] Epoch 28/50 | Train Loss: 1.3646, Train Acc: 84.47% | (validation skipped) | LR: 0.000412 | Time: 100.5s
+2026-02-16 11:23:29,431 [INFO] Epoch 29/50 | Train Loss: 1.3442, Train Acc: 85.22% | (validation skipped) | LR: 0.000382 | Time: 100.4s
+2026-02-16 11:25:15,525 [INFO] Epoch 30/50 | Train Loss: 1.3216, Train Acc: 85.83% | Val Loss: 1.3900, Val Acc: 82.80% | LR: 0.000352 | Time: 106.1s
+2026-02-16 11:25:15,728 [INFO] New best accuracy: 82.80%
+2026-02-16 11:26:56,437 [INFO] Epoch 31/50 | Train Loss: 1.3121, Train Acc: 86.19% | (validation skipped) | LR: 0.000323 | Time: 100.5s
+2026-02-16 11:28:37,083 [INFO] Epoch 32/50 | Train Loss: 1.2918, Train Acc: 86.76% | (validation skipped) | LR: 0.000294 | Time: 100.6s
+2026-02-16 11:30:17,615 [INFO] Epoch 33/50 | Train Loss: 1.2736, Train Acc: 87.38% | (validation skipped) | LR: 0.000267 | Time: 100.5s
+2026-02-16 11:31:58,128 [INFO] Epoch 34/50 | Train Loss: 1.2565, Train Acc: 87.87% | (validation skipped) | LR: 0.000240 | Time: 100.5s
+2026-02-16 11:33:43,319 [INFO] Epoch 35/50 | Train Loss: 1.2437, Train Acc: 88.25% | Val Loss: 1.3585, Val Acc: 83.74% | LR: 0.000214 | Time: 105.2s
+2026-02-16 11:33:43,523 [INFO] New best accuracy: 83.74%
+2026-02-16 11:35:23,823 [INFO] Epoch 36/50 | Train Loss: 1.2313, Train Acc: 88.67% | (validation skipped) | LR: 0.000189 | Time: 100.3s
+2026-02-16 11:37:04,329 [INFO] Epoch 37/50 | Train Loss: 1.2166, Train Acc: 89.09% | (validation skipped) | LR: 0.000166 | Time: 100.5s
+2026-02-16 11:38:44,881 [INFO] Epoch 38/50 | Train Loss: 1.2011, Train Acc: 89.54% | (validation skipped) | LR: 0.000144 | Time: 100.6s
+2026-02-16 11:40:25,271 [INFO] Epoch 39/50 | Train Loss: 1.1883, Train Acc: 89.91% | (validation skipped) | LR: 0.000124 | Time: 100.4s
+2026-02-16 11:42:10,374 [INFO] Epoch 40/50 | Train Loss: 1.1801, Train Acc: 90.19% | Val Loss: 1.3313, Val Acc: 84.52% | LR: 0.000105 | Time: 105.1s
+2026-02-16 11:42:10,619 [INFO] New best accuracy: 84.52%
+2026-02-16 11:43:51,328 [INFO] Epoch 41/50 | Train Loss: 1.1713, Train Acc: 90.49% | (validation skipped) | LR: 0.000087 | Time: 100.5s
+2026-02-16 11:45:31,768 [INFO] Epoch 42/50 | Train Loss: 1.1607, Train Acc: 90.78% | (validation skipped) | LR: 0.000071 | Time: 100.4s
+2026-02-16 11:47:12,206 [INFO] Epoch 43/50 | Train Loss: 1.1523, Train Acc: 91.01% | (validation skipped) | LR: 0.000057 | Time: 100.4s
+2026-02-16 11:48:52,713 [INFO] Epoch 44/50 | Train Loss: 1.1472, Train Acc: 91.17% | (validation skipped) | LR: 0.000045 | Time: 100.5s
+2026-02-16 11:50:37,766 [INFO] Epoch 45/50 | Train Loss: 1.1404, Train Acc: 91.44% | Val Loss: 1.3254, Val Acc: 84.96% | LR: 0.000034 | Time: 105.0s
+2026-02-16 11:50:38,007 [INFO] New best accuracy: 84.96%
+2026-02-16 11:52:18,286 [INFO] Epoch 46/50 | Train Loss: 1.1364, Train Acc: 91.50% | (validation skipped) | LR: 0.000026 | Time: 100.3s
+2026-02-16 11:53:58,675 [INFO] Epoch 47/50 | Train Loss: 1.1326, Train Acc: 91.66% | (validation skipped) | LR: 0.000019 | Time: 100.4s
+2026-02-16 11:55:39,141 [INFO] Epoch 48/50 | Train Loss: 1.1287, Train Acc: 91.78% | (validation skipped) | LR: 0.000014 | Time: 100.4s
+2026-02-16 11:57:19,781 [INFO] Epoch 49/50 | Train Loss: 1.1257, Train Acc: 91.82% | (validation skipped) | LR: 0.000011 | Time: 100.6s
+2026-02-16 11:59:04,641 [INFO] Epoch 50/50 | Train Loss: 1.1274, Train Acc: 91.68% | Val Loss: 1.3168, Val Acc: 85.10% | LR: 0.000010 | Time: 104.8s
+2026-02-16 11:59:04,898 [INFO] New best accuracy: 85.10%
+2026-02-16 11:59:05,118 [INFO] Training complete! Best accuracy: 85.10%
+2026-02-16 11:59:05,119 [INFO] Outputs saved to: /projects/prjs0771/melle/projects/visionCNN/logs/convnext_small_batchnorm

@@ -1,0 +1,32 @@
+[2026-02-16 14:53:22,928] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
+/projects/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: '/gpfs/work1/0/prjs0771/melle/envs/pytorch21-cuda121/lib/python3.11/site-packages/torchvision/image.so: undefined symbol: _ZN3c106detail23torchInternalAssertFailEPKcS2_jS2_RKSs'If you don't plan on using image functionality from `torchvision.io`, you can ignore this warning. Otherwise, there might be something wrong with your environment. Did you have `libjpeg` or `libpng` installed before building `torchvision` from source?
+  warn(
+2026-02-16 14:53:29,411 [INFO] Distributed: DistributedManager(rank=0, local_rank=0, world_size=1, device=cuda:0, is_distributed=True)
+2026-02-16 14:53:29,429 [INFO] Config: {'experiment_name': 'vgg_medium_layernorm', 'model': {'name': 'vgg_medium', 'num_classes': 100, 'norm_layer': 'layernorm'}, 'data': {'dataset': 'imagenet100', 'root': '/scratch-nvme/ml-datasets/imagenet/torchvision_ImageFolder', 'img_size': 224, 'backend': 'pytorch', 'num_workers': 16, 'pin_memory': True, 'persistent_workers': True, 'prefetch_factor': 2, 'gpu_transforms': True}, 'training': {'epochs': 50, 'batch_size': 128, 'lr': 0.001, 'min_lr': 1e-05, 'weight_decay': 0.05, 'optimizer': 'adamw', 'scheduler': 'cosine', 'label_smoothing': 0.1, 'use_amp': True, 'channels_last': True, 'seed': 42, 'val_frequency': 5, 'save_frequency': 10, 'disable_progress_bar': True}, 'logging': {'log_dir': 'logs'}, 'wandb': {'enabled': True, 'project': 'norm-comparison', 'tags': ['norm-experiment', 'imagenet100']}}
+2026-02-16 14:53:29,430 [INFO] Run directory: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_medium_layernorm
+2026-02-16 14:53:29,430 [INFO] Set random seed: 42 (rank offset applied)
+2026-02-16 14:53:29,430 [INFO] Using device: cuda:0
+2026-02-16 14:53:29,430 [INFO] World size: 1
+2026-02-16 14:53:29,588 [INFO] Model: vgg_medium, Parameters: 14,774,436
+2026-02-16 14:53:29,614 [INFO] Using channels-last (NHWC) memory format
+2026-02-16 14:53:29,655 [INFO] Mixed precision training: True
+2026-02-16 14:53:48,481 [INFO] Using GPU-accelerated transforms to reduce CPU bottleneck
+2026-02-16 14:53:48,481 [INFO] Train samples: 128135, Val samples: 5000
+2026-02-16 14:53:48,481 [INFO] Effective batch size: 128 (128 x 1 GPUs)
+2026-02-16 14:53:48,481 [INFO] Resuming from: /projects/prjs0771/melle/projects/visionCNN/logs/vgg_medium_layernorm/last.pt
+2026-02-16 14:53:49,469 [INFO] Resumed from epoch 40, best_acc: 79.74%
+2026-02-16 14:53:49,469 [INFO] Starting training for 50 epochs...
+2026-02-16 14:58:20,444 [INFO] Epoch 41/50 | Train Loss: 1.5438, Train Acc: 79.60% | (validation skipped) | LR: 0.000087 | Time: 271.0s
+2026-02-16 15:02:46,720 [INFO] Epoch 42/50 | Train Loss: 1.5304, Train Acc: 79.96% | (validation skipped) | LR: 0.000071 | Time: 266.3s
+2026-02-16 15:07:12,932 [INFO] Epoch 43/50 | Train Loss: 1.5184, Train Acc: 80.36% | (validation skipped) | LR: 0.000057 | Time: 266.2s
+2026-02-16 15:11:39,189 [INFO] Epoch 44/50 | Train Loss: 1.5054, Train Acc: 80.82% | (validation skipped) | LR: 0.000045 | Time: 266.2s
+2026-02-16 15:16:11,624 [INFO] Epoch 45/50 | Train Loss: 1.4933, Train Acc: 81.18% | Val Loss: 1.4975, Val Acc: 80.76% | LR: 0.000034 | Time: 272.4s
+2026-02-16 15:16:11,877 [INFO] New best accuracy: 80.76%
+2026-02-16 15:20:38,010 [INFO] Epoch 46/50 | Train Loss: 1.4870, Train Acc: 81.43% | (validation skipped) | LR: 0.000026 | Time: 266.1s
+2026-02-16 15:25:04,194 [INFO] Epoch 47/50 | Train Loss: 1.4852, Train Acc: 81.50% | (validation skipped) | LR: 0.000019 | Time: 266.2s
+2026-02-16 15:29:30,402 [INFO] Epoch 48/50 | Train Loss: 1.4764, Train Acc: 81.83% | (validation skipped) | LR: 0.000014 | Time: 266.2s
+[2026-02-16T15:33:28.023] error: *** JOB 19541998 ON gcn15 CANCELLED AT 2026-02-16T15:33:28 DUE TO TIME LIMIT ***
+[2026-02-16T15:33:28.025] error: *** STEP 19541998.0 ON gcn15 CANCELLED AT 2026-02-16T15:33:28 DUE TO TIME LIMIT ***
+[2026-02-16 15:33:28,026] torch.distributed.elastic.agent.server.api: [WARNING] Received 15 death signal, shutting down workers
+[2026-02-16 15:33:28,026] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 2990000 closing signal SIGTERM
+[2026-02-16 15:33:28,029] torch.distributed.elastic.multiprocessing.api: [WARNING] Sending process 2990000 closing signal SIGTERM
