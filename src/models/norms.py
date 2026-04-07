@@ -151,24 +151,56 @@ class Derf2dVP(nn.Module):
         return out * self.weight[None, :, None, None] + self.bias[None, :, None, None]
 
 
+class DynamicBatchNorm2d(nn.BatchNorm2d):
+    """BatchNorm2d that uses batch statistics at eval time.
+
+    Standard BatchNorm freezes running statistics at inference, which degrades
+    on OOD inputs whose channel statistics differ from the training distribution.
+    This variant recomputes (mu, sigma) from the actual test batch, adapting to
+    distribution shifts without changing training behaviour at all.
+
+    Training: identical to nn.BatchNorm2d (batch stats + running stat update).
+    Inference: batch stats computed on the fly; running buffers not updated.
+    """
+
+    def forward(self, x):
+        if self.training:
+            return super().forward(x)
+        # Eval: compute batch statistics without touching running buffers.
+        # F.batch_norm with training=True and running_mean/var=None computes
+        # batch stats and normalises without updating any buffer.
+        return F.batch_norm(
+            x, None, None,
+            self.weight, self.bias,
+            training=True, momentum=0, eps=self.eps,
+        )
+
+
 class LocalNorm2d(nn.Module):
     """LocalNorm for 2D feature maps (Yin et al., 2019, arXiv 1902.06550).
 
     Training: batch split into K groups; each group normalized with its own
     (mu_k, sigma_k) computed over (N/K, H, W) per channel, and its own
     learnable gamma_k, beta_k parameters (shape: K x C).
-    Inference: running statistics accumulated during training (like BatchNorm),
-    with parameters averaged across groups.
+
+    Inference (dynamic_eval=False, default): running statistics accumulated
+    during training, with parameters averaged across groups — identical to
+    BatchNorm inference.
+
+    Inference (dynamic_eval=True): statistics recomputed from the actual test
+    batch, as in the original paper. This lets the model adapt to OOD inputs
+    whose channel statistics differ from the training distribution.
 
     K controls regularization strength — larger K approximates InstanceNorm,
     smaller K approximates BatchNorm.
     """
 
-    def __init__(self, num_channels, K=2, eps=1e-5, momentum=0.1):
+    def __init__(self, num_channels, K=2, eps=1e-5, momentum=0.1, dynamic_eval=False):
         super().__init__()
         self.K = K
         self.eps = eps
         self.momentum = momentum
+        self.dynamic_eval = dynamic_eval
         self.weight = nn.Parameter(torch.ones(K, num_channels))   # K x C
         self.bias   = nn.Parameter(torch.zeros(K, num_channels))  # K x C
         self.register_buffer('running_mean', torch.zeros(num_channels))
@@ -194,11 +226,15 @@ class LocalNorm2d(nn.Module):
                 self.running_var.lerp_(batch_var.float(), self.momentum)
             return torch.cat(outs, dim=0)
         else:
-            # Inference: use running statistics, averaged parameters
-            mean = self.running_mean.to(x.dtype)[None, :, None, None]
-            std  = (self.running_var + self.eps).sqrt().to(x.dtype)[None, :, None, None]
             w = self.weight.mean(0)[None, :, None, None]
             b = self.bias.mean(0)[None, :, None, None]
+            if self.dynamic_eval:
+                # Paper's original inference: recompute stats from the test batch
+                mean = x.mean(dim=[0, 2, 3], keepdim=True)
+                std  = x.var(dim=[0, 2, 3], keepdim=True, unbiased=False).float().add(self.eps).sqrt().to(x.dtype)
+            else:
+                mean = self.running_mean.to(x.dtype)[None, :, None, None]
+                std  = (self.running_var + self.eps).sqrt().to(x.dtype)[None, :, None, None]
             return (x - mean) / std * w + b
 
 
@@ -358,6 +394,8 @@ def get_norm_layer(name: str):
     name = name.lower()
     if name == "batchnorm":
         return nn.BatchNorm2d
+    elif name == "batchnorm_dyn":
+        return DynamicBatchNorm2d
     elif name == "layernorm":
         # GroupNorm with 1 group normalizes over (C, H, W) — canonical LayerNorm for CNNs
         return partial(nn.GroupNorm, 1)
@@ -373,6 +411,8 @@ def get_norm_layer(name: str):
         return Derf2dVP
     elif name == "localnorm":
         return partial(LocalNorm2d, K=2)
+    elif name == "localnorm_dyn":
+        return partial(LocalNorm2d, K=2, dynamic_eval=True)
     elif name == "localnorm_k1":
         return partial(LocalNorm2d, K=1)
     elif name == "localnorm_k4":
@@ -385,5 +425,5 @@ def get_norm_layer(name: str):
         return NoNorm
     else:
         raise ValueError(
-            f"Unknown norm layer '{name}'. Choose from: batchnorm, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, localnorm, localnorm_k1, localnorm_k4, localnorm_k8, localnorm_k16, nonorm, nonorm_ws"
+            f"Unknown norm layer '{name}'. Choose from: batchnorm, batchnorm_dyn, layernorm, groupnorm, rmsnorm, rmsnorm_bias, derf, derf_vp, localnorm, localnorm_dyn, localnorm_k1, localnorm_k4, localnorm_k8, localnorm_k16, nonorm, nonorm_ws"
         )
