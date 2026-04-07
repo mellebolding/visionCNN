@@ -29,30 +29,30 @@ import numpy as np
 # Constants
 # ---------------------------------------------------------------------------
 
-NORMS = ["batchnorm", "layernorm", "groupnorm", "rmsnorm", "derf", "localnorm"]
+NORMS = ["batchnorm", "layernorm", "groupnorm", "rmsnorm", "derf_stable", "localnorm"]
 NORM_LABELS = {
-    "batchnorm": "BatchNorm",
-    "layernorm": "LayerNorm",
-    "groupnorm": "GroupNorm",
-    "rmsnorm":   "RMSNorm",
-    "derf":      "Derf",
-    "localnorm": "LocalNorm",
+    "batchnorm":    "BatchNorm",
+    "layernorm":    "LayerNorm",
+    "groupnorm":    "GroupNorm",
+    "rmsnorm":      "RMSNorm",
+    "derf_stable":  "Derf",
+    "localnorm":    "LocalNorm",
 }
 NORM_COLORS = {
-    "batchnorm": "#1f77b4",
-    "layernorm": "#ff7f0e",
-    "groupnorm": "#2ca02c",
-    "rmsnorm":   "#d62728",
-    "derf":      "#9467bd",
-    "localnorm": "#8c564b",
+    "batchnorm":    "#1f77b4",
+    "layernorm":    "#ff7f0e",
+    "groupnorm":    "#2ca02c",
+    "rmsnorm":      "#d62728",
+    "derf_stable":  "#9467bd",
+    "localnorm":    "#8c564b",
 }
 NORM_STYLES = {
-    "batchnorm": "-",
-    "layernorm": "--",
-    "groupnorm": "-.",
-    "rmsnorm":   ":",
-    "derf":      (0, (3, 1, 1, 1)),  # dashdot dense
-    "localnorm": (0, (5, 2)),         # long dash
+    "batchnorm":    "-",
+    "layernorm":    "--",
+    "groupnorm":    "-.",
+    "rmsnorm":      ":",
+    "derf_stable":  (0, (3, 1, 1, 1)),  # dashdot dense
+    "localnorm":    (0, (5, 2)),         # long dash
 }
 
 SEEDS = [42, 43, 44, 45, 46]
@@ -350,9 +350,9 @@ def set_style():
         "grid.alpha": 0.3,
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "font.size": 11,
-        "axes.titlesize": 13,
-        "axes.labelsize": 11,
+        "font.size": 12,
+        "axes.titlesize": 14,
+        "axes.labelsize": 12,
         "legend.fontsize": 9,
         "lines.linewidth": 1.8,
     })
@@ -425,36 +425,44 @@ def print_summary_table(noaug, ecovalid):
 # 2. Training curves — per architecture
 # ---------------------------------------------------------------------------
 
-def plot_training_curves(noaug, output_dir):
+def plot_training_curves(ecovalid, ecovalid_std, output_dir):
+    """Training curves for ecovalid 5-seed runs with mean ± std bands."""
     set_style()
-    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
-    fig.suptitle("Training Dynamics — No Augmentation (ImageNet-Ecoset136)", fontsize=14, fontweight="bold")
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig.suptitle(
+        "Training Dynamics — ResNet-50, Eco-Valid (5 seeds, mean ± 1 std)",
+        fontsize=13, fontweight="bold",
+    )
 
-    for col, arch in enumerate(ARCHS):
-        ax_val  = axes[0, col]
-        ax_loss = axes[1, col]
+    panels = [
+        ("val_acc", "Val Accuracy (%)", "Validation Accuracy"),
+        ("train_loss", "Loss", "Training Loss"),
+        ("val_loss", "Loss", "Validation Loss"),
+    ]
 
+    for ax, (key, ylabel, title) in zip(axes, panels):
         for norm in NORMS:
-            h = noaug.get((arch, norm))
-            if h is None:
+            h = ecovalid.get(norm)
+            s = ecovalid_std.get(norm)
+            if h is None or key not in h:
                 continue
+            epochs = np.array(h["epoch"][:len(h[key])])
+            mean = np.array(h[key])
             c = NORM_COLORS[norm]
             ls = NORM_STYLES[norm]
-            label = NORM_LABELS[norm]
-            ax_val.plot(h["epoch"], h["val_acc"],  color=c, linestyle=ls, label=label)
-            ax_loss.plot(h["epoch"], h["val_loss"], color=c, linestyle=ls, label=label, alpha=0.7)
-            ax_loss.plot(h["epoch"], h["train_loss"], color=c, linestyle=ls, alpha=0.35)
+            ax.plot(epochs, mean, color=c, linestyle=ls, linewidth=1.8,
+                    label=NORM_LABELS[norm])
+            if s and key in s:
+                std = np.array(s[key][:len(mean)])
+                ax.fill_between(epochs, mean - std, mean + std,
+                                color=c, alpha=0.15)
 
-        ax_val.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.7, label="Chance")
-        ax_val.set_title(ARCH_LABELS[arch])
-        ax_val.set_ylabel("Val Accuracy (%)") if col == 0 else None
-        ax_val.set_xlabel("Epoch")
-        ax_val.legend(loc="upper left", framealpha=0.7)
-
-        ax_loss.set_title(f"{ARCH_LABELS[arch]} — Loss")
-        ax_loss.set_ylabel("Loss (val solid, train faint)") if col == 0 else None
-        ax_loss.set_xlabel("Epoch")
-        # Don't draw legend again
+        if key == "val_acc":
+            ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend(fontsize=8)
 
     plt.tight_layout()
     out = os.path.join(output_dir, "training_curves.png")
@@ -467,35 +475,40 @@ def plot_training_curves(noaug, output_dir):
 # 3. Bar chart — final best val accuracy
 # ---------------------------------------------------------------------------
 
-def plot_summary_bars(noaug, output_dir):
+def plot_summary_bars(ecovalid, ecovalid_std, output_dir):
+    """Bar chart of best val accuracy per norm with std error bars (ecovalid 5-seed)."""
     set_style()
-    n_archs = len(ARCHS)
-    n_norms = len(NORMS)
-    x = np.arange(n_archs)
-    width = 0.15
-    offsets = np.linspace(-(n_norms - 1) / 2, (n_norms - 1) / 2, n_norms) * width
+    fig, ax = plt.subplots(figsize=(9, 6))
 
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for i, norm in enumerate(NORMS):
-        vals = []
-        for arch in ARCHS:
-            h = noaug.get((arch, norm))
-            acc = best_val(h)
-            vals.append(acc if (acc and acc > 2.0) else 0.0)
-        bars = ax.bar(x + offsets[i], vals, width, label=NORM_LABELS[norm],
-                      color=NORM_COLORS[norm], alpha=0.85, edgecolor="white", linewidth=0.5)
-        for bar, v in zip(bars, vals):
-            if v > 1:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
-                        f"{v:.1f}", ha="center", va="bottom", fontsize=7.5, rotation=90)
+    norms_valid, means, stds = [], [], []
+    for norm in NORMS:
+        h = ecovalid.get(norm)
+        s = ecovalid_std.get(norm)
+        if h is None:
+            continue
+        acc = best_val(h)
+        if acc is None or acc < 2.0:
+            continue
+        best_idx = int(np.argmax(h["val_acc"]))
+        std_val = s["val_acc"][best_idx] if s and "val_acc" in s and best_idx < len(s["val_acc"]) else 0.0
+        norms_valid.append(norm)
+        means.append(acc)
+        stds.append(std_val)
+
+    x = np.arange(len(norms_valid))
+    bars = ax.bar(x, means, color=[NORM_COLORS[n] for n in norms_valid],
+                  alpha=0.85, edgecolor="white", linewidth=0.5,
+                  yerr=stds, capsize=5, error_kw={"linewidth": 1.2})
+    for bar, m, s in zip(bars, means, stds):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + s + 0.8,
+                f"{m:.1f}%", ha="center", va="bottom", fontsize=10, fontweight="bold")
 
     ax.set_xticks(x)
-    ax.set_xticklabels([ARCH_LABELS[a] for a in ARCHS])
+    ax.set_xticklabels([NORM_LABELS[n] for n in norms_valid], fontsize=11)
     ax.set_ylabel("Best Validation Accuracy (%)")
-    ax.set_title("Best Val Accuracy by Architecture and Norm — No Augmentation", fontweight="bold")
-    ax.legend(loc="upper right", framealpha=0.8)
-    ax.set_ylim(0, 75)
-    ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6, label="Chance")
+    ax.set_title("Best Val Accuracy — ResNet-50, Eco-Valid (5 seeds, mean ± std)", fontweight="bold")
+    ax.set_ylim(0, max(means) + 10)
+    ax.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
 
     plt.tight_layout()
     out = os.path.join(output_dir, "summary_bars.png")
@@ -504,215 +517,6 @@ def plot_summary_bars(noaug, output_dir):
     print(f"  Saved: {out}")
 
 
-# ---------------------------------------------------------------------------
-# 4. Derf deep-dive
-# ---------------------------------------------------------------------------
-
-def plot_derf_investigation(noaug, output_dir):
-    """Multi-panel figure examining Derf's failure modes."""
-    set_style()
-    fig = plt.figure(figsize=(15, 10))
-    fig.suptitle("Derf Deep-Dive: Why Does It Fail?", fontsize=14, fontweight="bold")
-    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.45, wspace=0.35)
-
-    # ---- panel 1: Early training loss for all 3 archs (zoom first 10 epochs) ----
-    ax1 = fig.add_subplot(gs[0, 0])
-    for arch in ARCHS:
-        h_derf = noaug.get((arch, "derf"))
-        h_bn   = noaug.get((arch, "batchnorm"))
-        if h_derf:
-            epochs = h_derf["epoch"][:15]
-            loss   = h_derf["train_loss"][:15]
-            arch_ls = ["-", "--", "-."][ARCHS.index(arch)]
-            ax1.plot(epochs, loss, color=NORM_COLORS["derf"],
-                     linestyle=arch_ls,
-                     label=f"Derf-{ARCH_LABELS[arch]}", linewidth=1.6)
-        if h_bn:
-            epochs = h_bn["epoch"][:15]
-            loss   = h_bn["train_loss"][:15]
-            ax1.plot(epochs, loss, color=NORM_COLORS["batchnorm"], alpha=0.4,
-                     linestyle="--", label=f"BN-{ARCH_LABELS[arch]}", linewidth=1.2)
-    ax1.axhline(np.log(136), color="red", linestyle=":", linewidth=1.5, alpha=0.9,
-                label=f"ln(136)={np.log(136):.3f}")
-    ax1.set_title("Early Training Loss (first 15 epochs)")
-    ax1.set_xlabel("Epoch")
-    ax1.set_ylabel("Train Loss")
-    ax1.legend(fontsize=7, loc="upper right")
-
-    # ---- panel 2: Full train loss for derf only ----
-    ax2 = fig.add_subplot(gs[0, 1])
-    for arch in ARCHS:
-        h = noaug.get((arch, "derf"))
-        if h:
-            ax2.plot(h["epoch"], h["train_loss"],
-                     color=NORM_COLORS["derf"],
-                     linestyle=["-", "--", "-."][ARCHS.index(arch)],
-                     label=ARCH_LABELS[arch])
-    ax2.axhline(np.log(136), color="red", linestyle=":", linewidth=1.5, alpha=0.9,
-                label=f"Chance entropy ln(136)")
-    ax2.set_title("Derf Train Loss — Full 50 Epochs")
-    ax2.set_xlabel("Epoch")
-    ax2.set_ylabel("Train Loss")
-    ax2.legend(fontsize=8)
-
-    # ---- panel 3: Val accuracy comparison Derf vs best norm ----
-    ax3 = fig.add_subplot(gs[0, 2])
-    best_norms = {"resnet50": "batchnorm", "convnext_small": "batchnorm", "vit_small": "batchnorm"}
-    for arch in ARCHS:
-        h_derf = noaug.get((arch, "derf"))
-        h_best = noaug.get((arch, best_norms[arch]))
-        ls_map = {a: s for a, s in zip(ARCHS, ["-", "--", "-."])}
-        if h_derf:
-            ax3.plot(h_derf["epoch"], h_derf["val_acc"],
-                     color=NORM_COLORS["derf"], linestyle=ls_map[arch],
-                     label=f"Derf-{ARCH_LABELS[arch]}", linewidth=1.6)
-        if h_best:
-            ax3.plot(h_best["epoch"], h_best["val_acc"],
-                     color=NORM_COLORS["batchnorm"], linestyle=ls_map[arch], alpha=0.5,
-                     label=f"BN-{ARCH_LABELS[arch]}", linewidth=1.2)
-    ax3.axhline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.7, label="Chance")
-    ax3.set_title("Derf vs BatchNorm Val Accuracy")
-    ax3.set_xlabel("Epoch")
-    ax3.set_ylabel("Val Accuracy (%)")
-    ax3.legend(fontsize=7)
-
-    # ---- panel 4: Theoretical analysis — erf saturation ----
-    ax4 = fig.add_subplot(gs[1, 0])
-    from math import erf as math_erf, sqrt, pi
-    x_vals = np.linspace(-4, 4, 400)
-    alphas = [0.5, 1.0, 2.0]
-    for alpha in alphas:
-        y = np.array([math_erf(alpha * xv) for xv in x_vals])
-        ax4.plot(x_vals, y, label=f"α={alpha}")
-    # gradient of erf at alpha=0.5
-    grad = np.array([(2 / sqrt(pi)) * 0.5 * np.exp(-(0.5 * xv) ** 2) for xv in x_vals])
-    ax4.plot(x_vals, grad, color="gray", linestyle=":", linewidth=1.2, label="∂erf(0.5x)/∂x")
-    ax4.axhspan(-0.1, 0.1, alpha=0.08, color="red", label="Near-zero gradient zone")
-    ax4.set_title("erf(αx): Saturation and Gradient")
-    ax4.set_xlabel("Activation value x")
-    ax4.set_ylabel("erf(αx) / gradient")
-    ax4.legend(fontsize=8)
-    ax4.set_ylim(-1.3, 1.3)
-
-    # ---- panel 5: Compound scale reduction through ResNet depth ----
-    ax5 = fig.add_subplot(gs[1, 1])
-    # Estimate scale reduction per Derf layer (std_out / std_in for x ~ N(0,1))
-    # E[erf(0.5*x)^2] for x~N(0,1) ≈ integral numerically
-    from math import erf as math_erf
-    n_samples = 100000
-    np.random.seed(42)
-    x_sample = np.random.randn(n_samples)
-    derf_out = np.array([math_erf(0.5 * xv) for xv in x_sample])
-    scale_factor = np.std(derf_out)  # ~0.42
-
-    depths = np.arange(0, 50)   # number of Derf layers traversed
-    # With residual connections: after N blocks with skip connections,
-    # the signal is approximately identity + sum of small residuals
-    # Model the residual branch as scale_factor^(3 per block) reduction
-    # Pure sequential (no skip):
-    pure_seq = scale_factor ** depths
-    # With skip connections (simplified): each block output = identity + 0.4^3 * residual
-    # After k blocks: std grows roughly as (1 + eps)^k where eps = scale_factor^3
-    residual_contribution = scale_factor ** 3  # ~0.074 per block
-    with_skip = np.array([(1 + residual_contribution) ** (d // 3) * scale_factor ** (d % 3)
-                          if d > 0 else 1.0 for d in depths])
-
-    ax5.semilogy(depths, pure_seq, color="red", label=f"Pure sequential (scale={scale_factor:.2f}^depth)")
-    ax5.axhline(1e-6, color="gray", linestyle=":", alpha=0.5, label="Effective zero")
-    ax5.set_title(f"Activation Scale Through Depth\n(erf(0.5x) reduces std by {scale_factor:.2f}×/layer)")
-    ax5.set_xlabel("Number of Derf layers traversed")
-    ax5.set_ylabel("Relative activation scale")
-    ax5.legend(fontsize=8)
-    ax5.text(5, 1e-8, f"ResNet-50 has 48 Derf layers\n→ scale ≈ {scale_factor**48:.2e}",
-             fontsize=8, color="red")
-
-    # ---- panel 6: All norms ranked, per architecture ----
-    ax6 = fig.add_subplot(gs[1, 2])
-    bar_data = {arch: [] for arch in ARCHS}
-    for arch in ARCHS:
-        for norm in NORMS:
-            h = noaug.get((arch, norm))
-            acc = best_val(h)
-            bar_data[arch].append(acc if (acc and acc > 2.0) else 0.0)
-
-    x = np.arange(len(NORMS))
-    width = 0.25
-    for i, arch in enumerate(ARCHS):
-        offset = (i - 1) * width
-        ax6.bar(x + offset, bar_data[arch], width, label=ARCH_LABELS[arch],
-                alpha=0.85, edgecolor="white", linewidth=0.5)
-    ax6.set_xticks(x)
-    ax6.set_xticklabels([NORM_LABELS[n] for n in NORMS], rotation=15)
-    ax6.set_ylabel("Best Val Accuracy (%)")
-    ax6.set_title("All Norms: Derf Highlighted in Context")
-    ax6.legend(fontsize=8)
-    ax6.set_ylim(0, 75)
-    # Shade Derf column
-    derf_idx = NORMS.index("derf")
-    ax6.axvspan(derf_idx - 0.5, derf_idx + 0.5, alpha=0.1, color="purple", label="Derf zone")
-
-    out = os.path.join(output_dir, "derf_investigation.png")
-    plt.savefig(out, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"  Saved: {out}")
-
-
-def print_derf_analysis():
-    """Print a written analysis of why Derf fails."""
-    print("\n" + "=" * 75)
-    print("DERF FAILURE ANALYSIS")
-    print("=" * 75)
-    print("""
-Derf2d: output = erf(α·x + shift) · weight + bias
-  Learnable: α (scalar, init 0.5), shift (scalar, init 0.0),
-             weight (per-channel, init 1.0), bias (per-channel, init 0.0)
-
-WHY IT COMPLETELY FAILS FOR RESNET-50 (chance accuracy from epoch 1):
-----------------------------------------------------------------------
-1. Not a normalizer: Derf does not zero-mean or unit-variance activations.
-   It is a bounded pointwise squashing function (output ≈ range [-1, 1]).
-
-2. Scale collapse through depth:
-   - erf(0.5·x) for x ~ N(0,1) → std ≈ 0.42 (reduces by ~0.58x per layer)
-   - ResNet-50 Bottleneck uses 3 Derf layers per block × 16 blocks = 48 layers
-   - Compound reduction: 0.42^48 ≈ 10^{-17} → effectively zero
-   - Skip connections keep the model alive at chance level but residual
-     branches produce near-zero outputs → no learning signal
-
-3. Gradient vanishing:
-   - ∂erf(α·x)/∂x = (2/√π)·α·exp(-(α·x)²)
-   - For saturated inputs (large |x|): gradient → 0 exponentially fast
-   - Kaiming initialization assumes variance-preserving norm → scale mismatch
-   - With 48 near-zero gradients multiplied in backprop: gradient ≈ 0
-
-4. AMP (float16) amplifies the issue:
-   - Float16 underflows at ~6e-8; scale 0.42^20 ≈ 6e-9 → underflow at ~20 layers
-   - Gradient scaler helps but activation scale loss is in the forward pass
-
-RESULT: Loss stuck at ln(136) = 4.913 (uniform distribution entropy)
-        from epoch 1 through epoch 50 — the model never learns.
-
-WHY DERF PARTIALLY WORKS FOR VIT AND CONVNEXT:
------------------------------------------------
-- ViT: Derf is used as PRE-norm before attention/MLP. Attention softmax
-  normalizes by itself; the model can still compute meaningful similarity
-  scores. Result: 35.7% (vs 48.8% BatchNorm) — degraded but alive.
-
-- ConvNeXt-Small: Uses depthwise separable convolutions with per-channel
-  norms. The architecture is more forgiving of scale mismatches.
-  Result: 36.3% (vs 62.1% BatchNorm) — significant degradation.
-
-BOTH still show ~25% relative drop vs BatchNorm, confirming Derf's
-fundamental incompatibility with standard initialization and ResNet-style
-deep networks without careful initialization/LR tuning.
-
-POTENTIAL FIXES (not implemented):
-  - Initialize α much smaller (e.g., 0.01) to keep Derf near-linear initially
-  - Use a separate LR for Derf parameters (warm up α slowly)
-  - Scale weights by 1/erf_std to compensate for std reduction
-  - Use Adaptive Gradient Clipping (already implemented for nonorm_ws)
-  - Train with a lower learning rate and longer schedule
-""")
 
 
 # ---------------------------------------------------------------------------
@@ -745,7 +549,7 @@ def plot_augmentation_comparison(noaug, ecovalid, output_dir):
 
     # Right: bar chart of best val acc, grouped by norm
     ax = axes[1]
-    norms_exc_derf = [n for n in NORMS if n != "derf"]
+    norms_exc_derf = [n for n in NORMS if "derf" not in n]
     x = np.arange(len(norms_exc_derf))
     width = 0.35
     na_vals = [best_val(noaug.get(("resnet50", n))) or 0 for n in norms_exc_derf]
@@ -1047,55 +851,46 @@ def plot_robustness_ratio(ecovalid, ood_histories, ood_histories_std, output_dir
 # 6. Cross-norm ranking heatmap
 # ---------------------------------------------------------------------------
 
-def plot_heatmap(noaug, ecovalid, output_dir):
+def plot_heatmap(ecovalid, ecovalid_std, output_dir):
+    """Horizontal bar chart of ecovalid best val accuracy per norm."""
     set_style()
-    # Columns: ResNet-50 ecovalid first, then 3 no-aug archs
-    cols = ["resnet50_ecovalid"] + ARCHS
-    col_labels = ["ResNet-50\n(EcoValid Aug)"] + [ARCH_LABELS[a] for a in ARCHS]
 
-    data = np.full((len(NORMS), len(cols)), np.nan)
-    for i, norm in enumerate(NORMS):
-        # First column: ResNet-50 ecovalid
-        h_ev = ecovalid.get(norm)
-        acc_ev = best_val(h_ev)
-        if acc_ev is not None and acc_ev > 2.0:
-            data[i, 0] = acc_ev
-        for j, arch in enumerate(ARCHS):
-            h = noaug.get((arch, norm))
-            acc = best_val(h)
-            if acc is not None and acc > 2.0:
-                data[i, j + 1] = acc
+    norms_sorted = []
+    for norm in NORMS:
+        h = ecovalid.get(norm)
+        acc = best_val(h)
+        if acc is not None and acc > 2.0:
+            norms_sorted.append((norm, acc))
+    norms_sorted.sort(key=lambda x: x[1])  # ascending for horizontal bars
 
     fig, ax = plt.subplots(figsize=(9, 5))
-    masked = np.ma.masked_invalid(data)
-    im = ax.imshow(masked, cmap="RdYlGn", vmin=0, vmax=85, aspect="auto")
-    plt.colorbar(im, ax=ax, label="Best Val Accuracy (%)")
-    ax.set_xticks(range(len(cols)))
-    ax.set_xticklabels(col_labels, fontsize=10)
-    ax.set_yticks(range(len(NORMS)))
-    ax.set_yticklabels([NORM_LABELS[n] for n in NORMS])
-    ax.set_title("Best Validation Accuracy Heatmap\n(ImageNet-Ecoset136)", fontweight="bold")
+    y = np.arange(len(norms_sorted))
+    vals = [v for _, v in norms_sorted]
+    norm_keys = [n for n, _ in norms_sorted]
+    colors = [NORM_COLORS[n] for n in norm_keys]
 
-    # Draw a vertical separator between ecovalid and no-aug columns
-    ax.axvline(0.5, color="white", linewidth=2.5)
+    # Get std at best epoch
+    err = []
+    for n in norm_keys:
+        s = ecovalid_std.get(n)
+        h = ecovalid.get(n)
+        best_idx = int(np.argmax(h["val_acc"]))
+        std_val = s["val_acc"][best_idx] if s and "val_acc" in s and best_idx < len(s["val_acc"]) else 0.0
+        err.append(std_val)
 
-    for i in range(len(NORMS)):
-        for j in range(len(cols)):
-            val = data[i, j]
-            if np.isnan(val):
-                ax.text(j, i, "FAILED", ha="center", va="center",
-                        fontsize=9, color="black", fontweight="bold")
-            else:
-                ax.text(j, i, f"{val:.1f}%", ha="center", va="center",
-                        fontsize=10, color="black" if val > 35 else "white")
+    bars = ax.barh(y, vals, color=colors, alpha=0.85, edgecolor="white", linewidth=0.5,
+                   xerr=err, capsize=4, error_kw={"linewidth": 1.0})
+    ax.set_yticks(y)
+    ax.set_yticklabels([NORM_LABELS[n] for n in norm_keys], fontsize=11)
+    ax.set_xlabel("Best Validation Accuracy (%)")
+    ax.set_title("Best Val Accuracy — ResNet-50, Eco-Valid (5 seeds)", fontweight="bold")
 
-    # Label the two sections along the top
-    ax.annotate("EcoValid Aug", xy=(0, 1.06), xycoords="axes fraction",
-                ha="center", fontsize=9, color="gray",
-                xytext=(0.5 / len(cols), 1.06))
-    ax.annotate("No Augmentation", xy=(0, 1.06), xycoords="axes fraction",
-                ha="center", fontsize=9, color="gray",
-                xytext=((1 + len(ARCHS)) / 2 / len(cols), 1.06))
+    for bar, v, e in zip(bars, vals, err):
+        ax.text(v + e + 0.5, bar.get_y() + bar.get_height() / 2,
+                f"{v:.1f}%", va="center", fontsize=10, fontweight="bold")
+
+    ax.set_xlim(0, max(vals) + 10)
+    ax.axvline(CHANCE_ACC, color="gray", linestyle=":", linewidth=1, alpha=0.6)
 
     plt.tight_layout()
     out = os.path.join(output_dir, "accuracy_heatmap.png")
@@ -1108,31 +903,50 @@ def plot_heatmap(noaug, ecovalid, output_dir):
 # 7. Overfitting analysis
 # ---------------------------------------------------------------------------
 
-def plot_overfitting(noaug, output_dir):
+def plot_overfitting(ecovalid, ecovalid_std, output_dir):
+    """Overfitting analysis: train vs val accuracy for ecovalid 5-seed runs."""
     set_style()
-    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.suptitle("Overfitting: Train vs Val Accuracy — No Augmentation", fontsize=13, fontweight="bold")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    fig.suptitle(
+        "Overfitting: Train vs Val Accuracy — ResNet-50, Eco-Valid (5 seeds)",
+        fontsize=13, fontweight="bold",
+    )
 
-    for col, arch in enumerate(ARCHS):
-        ax = axes[col]
-        for norm in NORMS:
-            h = noaug.get((arch, norm))
-            if h is None or best_val(h) is None or best_val(h) < 2.0:
-                continue
-            c = NORM_COLORS[norm]
-            ls = NORM_STYLES[norm]
-            label = NORM_LABELS[norm]
-            ax.plot(h["epoch"], h["train_acc"], color=c, linestyle=ls, linewidth=1.5, label=f"{label} (train)")
-            ax.plot(h["epoch"], h["val_acc"],   color=c, linestyle=ls, linewidth=1.0, alpha=0.55, label=f"{label} (val)")
+    for norm in NORMS:
+        h = ecovalid.get(norm)
+        s = ecovalid_std.get(norm)
+        if h is None or best_val(h) is None or best_val(h) < 2.0:
+            continue
+        c = NORM_COLORS[norm]
+        ls = NORM_STYLES[norm]
+        epochs = np.array(h["epoch"][:len(h["train_acc"])])
 
-        ax.set_title(ARCH_LABELS[arch])
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Accuracy (%)") if col == 0 else None
-        # Custom legend: just show norm name once
-        handles = [plt.Line2D([0], [0], color=NORM_COLORS[n], linestyle=NORM_STYLES[n],
-                               label=NORM_LABELS[n])
-                   for n in NORMS if noaug.get((arch, n)) and best_val(noaug.get((arch, n))) > 2.0]
-        ax.legend(handles=handles, fontsize=8)
+        # Train accuracy (bold)
+        train_mean = np.array(h["train_acc"][:len(epochs)])
+        ax.plot(epochs, train_mean, color=c, linestyle=ls, linewidth=1.8,
+                label=f"{NORM_LABELS[norm]}")
+        if s and "train_acc" in s:
+            train_std = np.array(s["train_acc"][:len(epochs)])
+            ax.fill_between(epochs, train_mean - train_std, train_mean + train_std,
+                            color=c, alpha=0.08)
+
+        # Val accuracy (thinner, same color)
+        val_mean = np.array(h["val_acc"][:len(epochs)])
+        ax.plot(epochs, val_mean, color=c, linestyle=ls, linewidth=1.0, alpha=0.6)
+        if s and "val_acc" in s:
+            val_std = np.array(s["val_acc"][:len(epochs)])
+            ax.fill_between(epochs, val_mean - val_std, val_mean + val_std,
+                            color=c, alpha=0.08)
+
+    # Custom legend: norm name only (bold = train, thin = val explained in subtitle)
+    handles = [plt.Line2D([0], [0], color=NORM_COLORS[n], linestyle=NORM_STYLES[n],
+                           linewidth=1.8, label=NORM_LABELS[n])
+               for n in NORMS if ecovalid.get(n) and best_val(ecovalid.get(n)) and best_val(ecovalid.get(n)) > 2.0]
+    ax.legend(handles=handles, fontsize=9)
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy (%)")
+    ax.text(0.98, 0.02, "Bold = train, thin = val", transform=ax.transAxes,
+            ha="right", va="bottom", fontsize=9, color="gray", style="italic")
 
     plt.tight_layout()
     out = os.path.join(output_dir, "overfitting.png")
@@ -1203,6 +1017,7 @@ def plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir):
 
     # ---- Panel 2: C-corruptions (full mCE if available, else 4-corruption proxy) ----
     ax = axes[0, 1]
+    plotted_c = False
     if has_c_full:
         mce_key = "ood/imagenet_c_full/mce"
         norms_c = [n for n in NORMS if mce_key in imagenet_c_full.get(n, {})]
@@ -1217,7 +1032,8 @@ def plot_ood_analysis(ecovalid, ood_final, imagenet_c_full, output_dir):
             ax.set_xticklabels([NORM_LABELS[n] for n in norms_c], rotation=15, ha="right")
             ax.set_ylabel("mCE (lower = more robust)")
             ax.set_title("ImageNet-C Full: Mean Corruption Error")
-    else:
+            plotted_c = True
+    if not plotted_c:
         avail_c = [ds for ds in C_CORRUPTION_DATASETS
                    if any(ds in ood_final.get(n, {}) for n in NORMS)]
         if avail_c:
@@ -1617,20 +1433,15 @@ def main():
     # Summary table to stdout
     print_summary_table(noaug, ecovalid)
 
-    # Derf written analysis to stdout
-    print_derf_analysis()
-
     # Figures
     print("Generating figures...")
-    plot_training_curves(noaug, output_dir)
-    plot_summary_bars(noaug, output_dir)
-    plot_heatmap(noaug, ecovalid, output_dir)
-    plot_overfitting(noaug, output_dir)
-    plot_derf_investigation(noaug, output_dir)
-
     if ecovalid:
-        plot_augmentation_comparison(noaug, ecovalid, output_dir)
-        plot_ecovalid_progression(ecovalid, ecovalid_std, output_dir)
+        plot_training_curves(ecovalid, ecovalid_std, output_dir)
+        plot_summary_bars(ecovalid, ecovalid_std, output_dir)
+        plot_heatmap(ecovalid, ecovalid_std, output_dir)
+        plot_overfitting(ecovalid, ecovalid_std, output_dir)
+        if noaug:
+            plot_augmentation_comparison(noaug, ecovalid, output_dir)
 
     # OOD analysis — loaded from train logs + ood_results.json (if available)
     ood_final = load_ood_final(log_dir)
