@@ -57,7 +57,8 @@
       "Bash(find /gpfs/home1/mbolding/visionCNN -name *.yaml -path */derf* -o -name derf*.yaml)"
     ],
     "additionalDirectories": [
-      "/gpfs/home1/mbolding/visionCNN/logs"
+      "/gpfs/home1/mbolding/visionCNN/logs",
+      "/gpfs/home1/mbolding/.local/share/mamba/envs/visioncnn/lib/python3.11/site-packages/imagecorruptions"
     ]
   }
 }
