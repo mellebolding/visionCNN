@@ -86,7 +86,19 @@
       "Bash(echo $HOME)",
       "Bash(find /export/scratch2 -name history.csv -path *ecovalid*)",
       "Bash(echo WANDB_API_KEY=$WANDB_API_KEY)",
-      "Bash(du -sh /export/scratch1/home/melle/visionCNN/results/*)"
+      "Bash(du -sh /export/scratch1/home/melle/visionCNN/results/*)",
+      "Read(//tmp/**)",
+      "Bash(ls -d /export/scratch1/home/melle/visionCNN/logs/*/)",
+      "Bash(ls -d /export/scratch1/home/melle/visionCNN/local_logs/*resnet50*imagenet_ecoset*)",
+      "Bash(ls -d /export/scratch1/home/melle/visionCNN/local_logs/*_imagenet_ecoset/)",
+      "Bash([ -f \"$dir/ood_results.json\" ])",
+      "Bash(ls -lh /export/scratch1/home/melle/visionCNN/results/imagenet_ecoset_ecovalid_5seed/*.png)",
+      "WebFetch(domain:arxiv.org)",
+      "WebSearch",
+      "WebFetch(domain:ir.cwi.nl)",
+      "WebFetch(domain:deepai.org)",
+      "WebFetch(domain:ar5iv.labs.arxiv.org)",
+      "WebFetch(domain:www.cwi.nl)"
     ],
     "additionalDirectories": [
       "/gpfs/home1/mbolding/visionCNN/logs",
